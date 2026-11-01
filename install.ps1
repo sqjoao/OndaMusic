@@ -5,7 +5,7 @@ if (-not [Environment]::Is64BitOperatingSystem) { throw 'O Onda exige Windows de
 $architecture = if ($env:PROCESSOR_ARCHITEW6432) { $env:PROCESSOR_ARCHITEW6432 } else { $env:PROCESSOR_ARCHITECTURE }
 $arch = if ($architecture -eq 'ARM64') { 'arm64' } elseif ($architecture -eq 'AMD64') { 'x64' } else { throw "Arquitetura Windows nao suportada: $architecture" }
 $file = "onda-setup-$arch.exe"
-$base = 'https://github.com/sqjoao/Music/releases/latest/download'
+$base = 'https://github.com/sqjoao/OndaMusic/releases/latest/download'
 $temporary = Join-Path ([IO.Path]::GetTempPath()) ('onda-install-' + [Guid]::NewGuid().ToString('N'))
 $previousProgress = $ProgressPreference
 try {
@@ -15,7 +15,7 @@ try {
     try {
         Invoke-WebRequest -UseBasicParsing -Uri "$base/SHA256SUMS" -OutFile (Join-Path $temporary 'SHA256SUMS')
         Invoke-WebRequest -UseBasicParsing -Uri "$base/$file" -OutFile (Join-Path $temporary $file)
-    } catch { throw "Nao foi possivel baixar o instalador. Verifique a internet e se a primeira release terminou em https://github.com/sqjoao/Music/releases . $($_.Exception.Message)" }
+    } catch { throw "Nao foi possivel baixar o instalador. Verifique a internet e se a primeira release terminou em https://github.com/sqjoao/OndaMusic/releases . $($_.Exception.Message)" }
     $lines = @(Get-Content (Join-Path $temporary 'SHA256SUMS') | Where-Object { $_ -match ('^[a-fA-F0-9]{64}\s+\*?' + [regex]::Escape($file) + '$') })
     if ($lines.Count -ne 1) { throw 'A lista de checksums nao contem exatamente um instalador compativel.' }
     $expected = ($lines[0] -split '\s+')[0]

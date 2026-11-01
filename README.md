@@ -7,10 +7,10 @@ Player pessoal para **Windows 10/11 de 64 bits**, com instalador próprio. Não 
 Abra o **PowerShell** e execute:
 
 ```powershell
-irm https://raw.githubusercontent.com/sqjoao/Music/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/sqjoao/OndaMusic/main/install.ps1 | iex
 ```
 
-O comando baixa o instalador da última versão publicada no [GitHub Releases](https://github.com/sqjoao/Music/releases/latest), verifica o SHA-256 e instala para o seu usuário, sem exigir administrador. O instalador cria os atalhos do Onda. Repita o mesmo comando para atualizar ou instalar em outro PC.
+O comando baixa o instalador da última versão publicada no [GitHub Releases](https://github.com/sqjoao/OndaMusic/releases/latest), verifica o SHA-256 e instala para o seu usuário, sem exigir administrador. O instalador cria os atalhos do Onda. Repita o mesmo comando para atualizar ou instalar em outro PC.
 
 A primeira versão precisa terminar de ser gerada pelo workflow **Release Windows**. Se não existir uma release, o script informa que o instalador ainda não está disponível. O instalador não tem assinatura comercial: o Windows pode mostrar o SmartScreen identificando um editor desconhecido. O script mantém a verificação de HTTPS e de checksum e não altera as políticas de segurança do computador.
 
