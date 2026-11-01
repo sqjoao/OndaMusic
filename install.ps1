@@ -13,8 +13,13 @@ try {
     $ProgressPreference = 'SilentlyContinue'
     Write-Host "Instalando $([char]0x00FA)ltima vers$([char]0x00E3)o do Onda"
     try {
-        Invoke-WebRequest -UseBasicParsing -Uri "$base/SHA256SUMS" -OutFile (Join-Path $temporary 'SHA256SUMS')
-        Invoke-WebRequest -UseBasicParsing -Uri "$base/$file" -OutFile (Join-Path $temporary $file)
+        if (Get-Command gh -ErrorAction SilentlyContinue) {
+            gh release download --repo sqjoao/OndaMusic --pattern SHA256SUMS --pattern $file --dir $temporary *> $null
+            if ($LASTEXITCODE -ne 0) { throw 'Nao foi possivel acessar a release. Execute gh auth login com uma conta que tenha acesso ao repositorio.' }
+        } else {
+            Invoke-WebRequest -UseBasicParsing -Uri "$base/SHA256SUMS" -OutFile (Join-Path $temporary 'SHA256SUMS')
+            Invoke-WebRequest -UseBasicParsing -Uri "$base/$file" -OutFile (Join-Path $temporary $file)
+        }
     } catch { throw "Nao foi possivel baixar o instalador. Verifique a internet e se a primeira release terminou em https://github.com/sqjoao/OndaMusic/releases . $($_.Exception.Message)" }
     $lines = @(Get-Content (Join-Path $temporary 'SHA256SUMS') | Where-Object { $_ -match ('^[a-fA-F0-9]{64}\s+\*?' + [regex]::Escape($file) + '$') })
     if ($lines.Count -ne 1) { throw 'Nao foi possivel validar o instalador desta versao.' }
