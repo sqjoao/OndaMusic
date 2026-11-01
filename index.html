@@ -9,13 +9,13 @@
       content="Player de música pessoal com biblioteca local, playlists e temas."
     />
     <title>onda — Player de música</title>
-    <link
-      rel="icon"
-      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%2352525b'/%3E%3Cpath d='M14 34v-4m9 13V21m9 30V13m9 30V21m9 13v-4' stroke='%23fff' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E"
-    />
+    <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="icons/icon-180.png" />
+    <link rel="manifest" href="manifest.webmanifest" />
     <script src="appearance.js"></script>
     <link rel="stylesheet" href="styles.css" />
     <script type="module" src="app.js"></script>
+    <script type="module" src="pwa.js"></script>
   </head>
   <body>
     <svg
@@ -676,6 +676,39 @@
           Use um código hexadecimal, como #4666e5.
         </p>
       </fieldset>
+      <section class="app-settings" aria-labelledby="app-settings-title">
+        <h3 id="app-settings-title">Aplicativo</h3>
+        <button class="button button-light full-width" id="install-app">
+          <svg class="icon" aria-hidden="true"><use href="#i-monitor" /></svg>
+          Instalar no computador
+        </button>
+        <p id="install-status" role="status">
+          Instale para abrir em uma janela própria.
+        </p>
+        <details id="install-help">
+          <summary>Instruções de instalação</summary>
+          <p>
+            No Chrome ou Edge, abra o menu do navegador e procure
+            <strong>Instalar onda</strong> ou
+            <strong>Aplicativos → Instalar este site como aplicativo</strong>.
+            Você também pode usar o ícone de instalação na barra de endereço.
+          </p>
+          <p>
+            No Safari do Mac, use <strong>Arquivo → Adicionar ao Dock</strong>.
+            Se seu navegador não oferecer instalação, abra o endereço no Chrome
+            ou Edge.
+          </p>
+        </details>
+        <p id="offline-status" role="status">Preparando acesso offline…</p>
+        <div id="app-update" hidden>
+          <p id="update-status" role="status">
+            Uma atualização está disponível. Aplicar reinicia o player.
+          </p>
+          <button class="button button-light" id="update-app">
+            Atualizar app
+          </button>
+        </div>
+      </section>
       <div class="settings-footer">
         <button class="text-button" id="reset-appearance">
           Restaurar padrão

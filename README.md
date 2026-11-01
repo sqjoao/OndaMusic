@@ -1,8 +1,40 @@
 # onda.
 
-Um player de música pessoal para desktop, feito com HTML, CSS e JavaScript puro. Sem contas, anúncios, serviços externos ou etapa de build.
+Um player de música pessoal para desktop, feito com HTML, CSS e JavaScript puro. Instalável como **PWA**, com janela própria e acesso offline. Sem contas, anúncios ou etapa de build.
 
-## Executar
+## Instalar no PC
+
+Depois de ativar a publicação abaixo, o endereço do app será **https://sqjoao.github.io/Music/**.
+
+1. Abra esse endereço no **Chrome ou Edge** com conexão à internet.
+2. Abra **Configurações** (engrenagem) e clique em **Instalar no computador**. Também é possível usar a opção **Instalar onda** do menu ou da barra de endereço do navegador.
+3. Confirme a instalação. O onda aparecerá entre os aplicativos do computador e abrirá em uma janela própria.
+4. Aguarde a mensagem **Disponível offline neste dispositivo** nas configurações. Depois disso, abra pelo atalho mesmo sem internet e importe suas músicas normalmente.
+
+Para instalar em outro PC, repita os passos usando **o mesmo endereço**. Não é preciso baixar o código, instalar Python ou manter o VS Code aberto. No Safari do Mac, a alternativa é **Arquivo → Adicionar ao Dock**. O nome da opção de instalação pode variar conforme a versão do navegador.
+
+Este é um app instalado pelo navegador, não um instalador `.exe`. Ele usa o navegador como base, mas funciona em sua própria janela. O navegador precisa continuar instalado.
+
+### Publicar o endereço uma única vez
+
+O projeto está pronto para hospedagem estática pelo GitHub Pages, sem configurar servidor ou adicionar dependências:
+
+1. Abra [Settings → Pages do repositório](https://github.com/sqjoao/Music/settings/pages).
+2. Em **Build and deployment**, escolha **Deploy from a branch**.
+3. Selecione a branch **main**, pasta **/(root)**, e clique em **Save**.
+4. Aguarde o GitHub mostrar que a publicação terminou e abra o endereço informado por ele.
+
+O arquivo `.nojekyll` mantém a publicação como arquivos estáticos. O código-fonte já enviado ao GitHub não significa que o site já foi publicado.
+
+**Cada PC mantém sua própria biblioteca.** Músicas e playlists não são enviadas ao GitHub nem sincronizadas entre computadores: importe os arquivos em cada dispositivo. Dados que você já importou em `localhost`/Live Server continuam nessa origem e não aparecem automaticamente no endereço do GitHub Pages.
+
+### Atualizações
+
+O app verifica novas versões quando é aberto ou volta a ficar online. Nas configurações, **Atualizar app** aparece quando uma versão está pronta. Esse botão reinicia o player; a atualização não interrompe uma música automaticamente. Fechar todas as janelas do app e reabrir também permite aplicar a próxima versão. Músicas, playlists e preferências continuam salvas.
+
+Ao modificar e publicar os arquivos do app, incremente `CACHE_VERSION` em `sw.js`. O navegador baixa o conjunto novo antes de oferecê-lo para uso offline. O cache contém só os arquivos da interface; os áudios continuam no IndexedDB.
+
+## Desenvolver no VS Code
 
 No **VS Code**, abra a pasta do projeto, instale a extensão **Live Server** e use **Open with Live Server** no arquivo `index.html`.
 
@@ -62,6 +94,21 @@ styles.css     Estilos e adaptação de layout
 appearance.js  Temas, cores e preferências de aparência
 app.js         Reprodução, importação e interações
 storage.js     Persistência e transações do IndexedDB
+pwa.js         Instalação, acesso offline e atualização
+sw.js          Cache dos arquivos do app
+manifest.webmanifest  Identidade e configuração da instalação
+icons/         Ícones do app
+tests/pwa_smoke.py  Testes de instalação, cache, atualização e áudio offline
 ```
 
-Nenhuma fonte, imagem, script ou dependência é carregada da internet.
+Nenhuma fonte, imagem, script ou dependência de terceiros é carregada pelo app.
+
+### Validação de desenvolvimento
+
+Com Python, Playwright para Python e Chromium disponíveis, execute:
+
+```sh
+python3 tests/pwa_smoke.py
+```
+
+O teste usa uma cópia temporária do projeto para validar `/Music/`, fechamento e reabertura offline com áudio real, dados salvos e atualização sem interromper a reprodução. Ele não altera os arquivos do app nem executa uma instalação no sistema operacional. `CHROMIUM_EXECUTABLE` permite indicar outro executável de Chromium. Essas ferramentas são apenas para desenvolvimento; não são necessárias para instalar ou usar o onda.
