@@ -427,7 +427,7 @@ const AUDIO_EXTENSION = /\.(mp3|wav|ogg|oga|m4a|aac|flac|opus|aif|aiff|webm)$/i;
 const state = {
   tracks: [],
   playlists: [],
-  view: "home",
+  view: "library",
   search: "",
   sort: "recent",
   currentId: null,
@@ -574,10 +574,6 @@ function viewTracks(includeSearch = true) {
   let tracks = playlist
     ? playlist.trackIds.map((id) => getTrack(id)).filter(Boolean)
     : [...state.tracks];
-  if (state.view.startsWith("genre:"))
-    tracks = tracks.filter(
-      (track) => (track.genre || "Sem categoria") === state.view.slice(6),
-    );
   if (state.view === "favorites")
     tracks = tracks.filter((track) => track.favorite);
   // "Recentes" lists the collection in import order by default.
@@ -627,34 +623,18 @@ function renderNavigation() {
 function renderLibrary() {
   const playlist = currentPlaylist();
   const titles = {
-    home: "Suas músicas",
     library: "Biblioteca",
     favorites: "Favoritas",
     recent: "Recentes",
   };
-  const title =
-    playlist?.name ||
-    (state.view.startsWith("genre:")
-      ? state.view.slice(6)
-      : titles[state.view]) ||
-    "Biblioteca";
+  const title = playlist?.name || titles[state.view] || "Biblioteca";
   const tracks = viewTracks();
   const allViewTracks = viewTracks(false);
   $("#view-title").textContent = title;
-  $("#collection-summary").textContent = allViewTracks.length
-    ? `${countLabel(allViewTracks.length)} · ${totalTime(allViewTracks)}`
-    : countLabel(0);
-  const home = state.view === "home";
-  $("#genre-home").hidden = !home;
-  $(".library-toolbar").hidden = home;
-  $("#library-panel").hidden = home;
-  $("#open-import").hidden = home;
-  $("#genre-grid").innerHTML = allGenres()
-    .map(
-      (genre, index) =>
-        `<button class="genre-card" data-genre="${escapeHTML(genre)}"><span class="genre-index">${String(index + 1).padStart(2, "0")}</span><strong>${escapeHTML(genre)}</strong><span>${countLabel(state.tracks.filter((track) => (track.genre || "Sem categoria") === genre).length)}</span></button>`,
-    )
-    .join("");
+  $("#collection-summary").textContent =
+    allViewTracks.length && allViewTracks.every((track) => track.duration > 0)
+      ? `${countLabel(allViewTracks.length)} · ${totalTime(allViewTracks)}`
+      : countLabel(allViewTracks.length);
   $("#edit-playlist").hidden = !playlist;
   $("#play-all").disabled = !tracks.length;
   $("#shuffle-all").disabled = !tracks.length;
@@ -667,7 +647,7 @@ function renderLibrary() {
       <div class="row-number"><span>${String(index + 1).padStart(2, "0")}</span><button class="icon-button" data-action="play" aria-label="${isPlaying ? "Pausar" : "Reproduzir"} ${escapeHTML(track.title)}">${icon(isPlaying ? "pause" : "play")}</button></div>
       <button class="track-details" data-action="play" aria-label="${isPlaying ? "Pausar" : "Reproduzir"} ${escapeHTML(track.title)} de ${escapeHTML(track.artist)}">
         <span class="track-copy"><strong title="${escapeHTML(track.title)}">${escapeHTML(track.title)}</strong><span>${escapeHTML(track.artist)}</span></span>
-      </button><span class="track-format">${escapeHTML(track.format)}</span><span class="track-duration">${time(track.duration)}</span>
+      </button><span class="track-format">${escapeHTML(track.format)}</span><span class="track-duration">${track.duration ? time(track.duration) : "—"}</span>
       <div class="track-actions"><button class="icon-button favorite-button${track.favorite ? " is-favorite" : ""}" data-action="favorite" aria-label="${track.favorite ? "Remover" : "Adicionar"} ${escapeHTML(track.title)} ${track.favorite ? "das" : "às"} favoritas" aria-pressed="${track.favorite}" title="${track.favorite ? "Remover das favoritas" : "Adicionar às favoritas"}">${icon("heart")}</button><button class="icon-button" data-action="organize" aria-label="Organizar ${escapeHTML(track.title)}" title="Organizar música">${icon("more")}</button></div>
     </div>`;
     })
@@ -688,7 +668,7 @@ function renderLibrary() {
       ? "Adicione músicas pelo menu de uma faixa ou importe novos arquivos."
       : state.view === "favorites"
         ? "Marque o coração ao lado de uma música para adicioná-la aqui."
-        : "Arraste arquivos de áudio ou adicione uma pasta.";
+        : "Inclua seus arquivos na pasta musicas e gere o instalador, ou adicione músicas por aqui.";
   $("#empty-import").hidden = filtered || state.view === "favorites";
   renderNavigation();
 }
@@ -787,7 +767,7 @@ function renderQueue() {
         .map((id, index) => {
           const track = getTrack(id);
           if (!track) return "";
-          return `<button class="queue-row${id === state.currentId ? " is-current" : ""}" data-queue-id="${id}" aria-label="Reproduzir ${escapeHTML(track.title)}"${id === state.currentId ? ' aria-current="true"' : ""}><span class="queue-index">${id === state.currentId ? icon("wave") : index + 1}</span><span class="track-copy"><strong>${escapeHTML(track.title)}</strong><span>${escapeHTML(track.artist)}</span></span><span class="track-duration">${time(track.duration)}</span></button>`;
+          return `<button class="queue-row${id === state.currentId ? " is-current" : ""}" data-queue-id="${id}" aria-label="Reproduzir ${escapeHTML(track.title)}"${id === state.currentId ? ' aria-current="true"' : ""}><span class="queue-index">${id === state.currentId ? icon("wave") : index + 1}</span><span class="track-copy"><strong>${escapeHTML(track.title)}</strong><span>${escapeHTML(track.artist)}</span></span><span class="track-duration">${track.duration ? time(track.duration) : "—"}</span></button>`;
         })
         .join("")
     : '<p class="queue-empty">Reproduza uma música para criar a fila.</p>';
@@ -825,9 +805,9 @@ async function loadTrack(id, autoplay = false, resumeAt = 0) {
   if (!track) return;
   const version = ++loadVersion;
   audio.pause();
-  if (currentURL) URL.revokeObjectURL(currentURL);
+  if (currentURL?.startsWith("blob:")) URL.revokeObjectURL(currentURL);
   state.currentId = id;
-  currentURL = URL.createObjectURL(track.file);
+  currentURL = track.embedded ? track.url : URL.createObjectURL(track.file);
   pendingSeek = { version, time: Math.max(0, resumeAt) };
   audio.src = currentURL;
   audio.load();
@@ -998,12 +978,8 @@ function organizeTrack(id) {
   const track = getTrack(id);
   if (!track) return;
   organizingTrackId = id;
-  $("#track-genre").innerHTML = allGenres()
-    .map(
-      (genre) =>
-        `<option${genre === (track.genre || "Sem categoria") ? " selected" : ""}>${escapeHTML(genre)}</option>`,
-    )
-    .join("");
+  $("#remove-track").hidden = Boolean(track.embedded);
+  $("#bundled-note").hidden = !track.embedded;
   $("#track-dialog-title").textContent = track.title;
   $("#track-dialog-artist").textContent = track.artist;
   const available = state.playlists.filter(
@@ -1189,7 +1165,6 @@ async function importFiles(fileList) {
   const files = Array.from(fileList);
   if (!files.length) return;
   const destinationId = currentPlaylist()?.id;
-  if (state.view === "home") setView("library");
   state.importing = true;
   showDialog("#import-dialog");
   $("#import-progress").hidden = false;
@@ -1237,9 +1212,6 @@ async function importFiles(fileList) {
         file,
         duration,
         format: file.name.split(".").pop().toLowerCase(),
-        genre: state.view.startsWith("genre:")
-          ? state.view.slice(6)
-          : inferGenre(file),
         favorite: false,
         importedAt: Date.now(),
       };
@@ -1337,7 +1309,7 @@ function bindEvents() {
     button.addEventListener("click", () => setView(button.dataset.view));
   $(".brand").addEventListener("click", (event) => {
     event.preventDefault();
-    setView("home");
+    setView("library");
   });
   $("#playlist-nav").addEventListener("click", (event) => {
     const button = event.target.closest("[data-playlist-view]");
@@ -1562,6 +1534,12 @@ function bindEvents() {
     }
   });
   audio.addEventListener("loadedmetadata", () => {
+    const track = getTrack();
+    if (track?.embedded && Number.isFinite(audio.duration)) {
+      track.duration = audio.duration;
+      void saveRecord("tracks", track).catch(storageError);
+      renderLibrary();
+    }
     if (pendingSeek?.version === loadVersion) {
       audio.currentTime = Math.min(
         pendingSeek.time,
@@ -1621,7 +1599,6 @@ async function initialize() {
   const preferences = readPreferences();
   audio.volume = state.volume;
   audio.muted = state.muted;
-  bindCategories();
   bindEvents();
   renderPlayer();
   try {
@@ -1630,6 +1607,24 @@ async function initialize() {
       readAll("tracks"),
       readAll("playlists"),
     ]);
+    if (location.protocol === "onda:") {
+      try {
+        const response = await fetch("onda://app/library.json");
+        if (!response.ok) throw Error("Catálogo indisponível");
+        const bundled = await response.json();
+        const saved = new Map(state.tracks.map((track) => [track.id, track]));
+        state.tracks = [
+          ...state.tracks.filter((track) => !track.embedded),
+          ...bundled.map((track) => ({
+            ...track,
+            favorite: Boolean(saved.get(track.id)?.favorite),
+            duration: saved.get(track.id)?.duration || 0,
+          })),
+        ];
+      } catch {
+        toast("Não foi possível carregar as músicas incluídas no app.", true);
+      }
+    }
     state.databaseReady = true;
     state.queueSource = Array.isArray(preferences.queueSource)
       ? [...new Set(preferences.queueSource.filter((id) => getTrack(id)))]
@@ -1654,83 +1649,6 @@ async function initialize() {
   }
   renderLibrary();
   renderPlayer();
-}
-
-const DEFAULT_GENRES = [
-  "Rock",
-  "Funk",
-  "Sertanejo",
-  "Pagode",
-  "Pop",
-  "MPB",
-  "Rap",
-  "Eletrônica",
-];
-let customGenres = [];
-try {
-  const saved = JSON.parse(localStorage.getItem("onda:genres:v1"));
-  if (Array.isArray(saved))
-    customGenres = saved.filter(
-      (value) => typeof value === "string" && value.length <= 40,
-    );
-} catch {}
-function allGenres() {
-  return [
-    ...new Set([
-      ...DEFAULT_GENRES,
-      ...customGenres,
-      ...state.tracks.map((track) => track.genre).filter(Boolean),
-      "Sem categoria",
-    ]),
-  ];
-}
-function inferGenre(file) {
-  const path = (file.webkitRelativePath || "").toLocaleLowerCase("pt-BR");
-  return (
-    allGenres().find((genre) =>
-      path
-        .split("/")
-        .some(
-          (part) =>
-            part.toLocaleLowerCase("pt-BR") ===
-            genre.toLocaleLowerCase("pt-BR"),
-        ),
-    ) || "Sem categoria"
-  );
-}
-function bindCategories() {
-  $("#genre-grid").addEventListener("click", (event) => {
-    const button = event.target.closest("[data-genre]");
-    if (button) setView("genre:" + button.dataset.genre);
-  });
-  $("#genre-form").addEventListener("submit", (event) => {
-    event.preventDefault();
-    const name = $("#new-genre").value.trim();
-    if (!name) return;
-    try {
-      const updated = [...new Set([...customGenres, name])];
-      localStorage.setItem("onda:genres:v1", JSON.stringify(updated));
-      customGenres = updated;
-      $("#new-genre").value = "";
-      renderLibrary();
-    } catch {
-      toast("Não foi possível salvar a categoria.", true);
-    }
-  });
-  $("#save-track-genre").addEventListener("click", async () => {
-    const track = getTrack(organizingTrackId);
-    if (!track) return;
-    try {
-      const updated = { ...track, genre: $("#track-genre").value };
-      await saveRecord("tracks", updated);
-      Object.assign(track, updated);
-      $("#track-dialog").close();
-      renderLibrary();
-      toast("Categoria salva.");
-    } catch (error) {
-      storageError(error);
-    }
-  });
 }
 
 void initialize();

@@ -1,7 +1,7 @@
 {
   "name": "onda-player",
   "productName": "Onda",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Player pessoal de música para Windows",
   "author": "sqjoao",
   "private": true,
@@ -40,6 +40,25 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Onda"
-    }
+    },
+    "extraResources": [
+      {
+        "from": "musicas",
+        "to": "musicas",
+        "filter": [
+          "**/*.[mM][pP]3",
+          "**/*.[wW][aA][vV]",
+          "**/*.[oO][gG][gG]",
+          "**/*.[oO][gG][aA]",
+          "**/*.[mM]4[aA]",
+          "**/*.[aA][aA][cC]",
+          "**/*.[fF][lL][aA][cC]",
+          "**/*.[oO][pP][uU][sS]",
+          "**/*.[aA][iI][fF]",
+          "**/*.[aA][iI][fF][fF]",
+          "**/*.[wW][eE][bB][mM]"
+        ]
+      }
+    ]
   }
 }

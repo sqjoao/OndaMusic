@@ -14,15 +14,29 @@ O comando baixa o instalador da última versão publicada no [GitHub Releases](h
 
 A primeira versão precisa terminar de ser gerada pelo workflow **Release Windows**. Se não existir uma release, o script informa que o instalador ainda não está disponível. O instalador não tem assinatura comercial: o Windows pode mostrar o SmartScreen identificando um editor desconhecido. O script mantém a verificação de HTTPS e de checksum e não altera as políticas de segurança do computador.
 
-## Biblioteca e categorias
+## Músicas incluídas no app
 
-A página inicial mostra Rock, Funk, Sertanejo, Pagode, Pop, MPB, Rap, Eletrônica e Sem categoria. Você também pode criar categorias.
+A tela inicial é a biblioteca, sem categorias. Coloque os áudios na pasta `musicas`, ao lado do `package.json`. Subpastas também são lidas:
 
-- Para importar, abra **Biblioteca → Adicionar músicas**, ou abra uma categoria e importe nela. Arquivos importados dentro da categoria já ficam classificados nela.
-- Arquivos também podem ser arrastados para a janela. A seleção de uma pasta com subpastas nomeadas como as categorias permite classificar as faixas pelo nome da pasta.
-- Para mudar a categoria de uma música existente, abra seu menu de três pontos, escolha a categoria e clique em **Salvar categoria**.
-- Favoritas, playlists, busca, fila, repetição, aleatório, volume e atalhos continuam disponíveis.
-- O padrão `Artista - Música.mp3` separa artista e título. Tags ID3 ainda não são lidas. Os formatos reproduzíveis dependem dos codecs do Electron.
+```text
+musicas/
+  Artista - Minha música.mp3
+  Outra faixa.flac
+  Album/
+    Faixa 01.wav
+```
+
+Ao gerar o instalador, os arquivos são copiados para os recursos do aplicativo. Eles aparecem automaticamente ao abrir o Onda, inclusive em outro PC que instalar essa mesma versão, sem importação e sem internet. O player lê os arquivos diretamente, sem duplicá-los no IndexedDB. Favoritos e playlists continuam salvos no perfil local. A duração de uma música incluída é identificada na primeira reprodução.
+
+Para adicionar/remover músicas embutidas, altere a pasta `musicas` e gere uma nova versão. Modificar a pasta do projeto não altera um aplicativo já instalado. O instalador cresce conforme o tamanho dos áudios. A pasta está vazia nesta versão: nenhum áudio de exemplo é distribuído.
+
+- Para gerar localmente, use `npm ci` e `npm run dist:win` no Windows. O instalador ficará em `dist`.
+- Para gerar pelo workflow do GitHub, os áudios precisam estar no commit da versão. **Seu repositório é público: arquivos de música enviados para ele também ficam públicos.** Você pode manter os áudios apenas no computador e gerar o instalador localmente.
+- Use nomes como `Artista - Música.mp3` para separar título e artista. Tags ID3 ainda não são lidas.
+- Continua possível importar arquivos pelo botão **Adicionar músicas**; essas importações são locais e não entram nos instaladores.
+- Para remover uma faixa incluída no instalador, retire-a de `musicas` e gere outra versão. O menu da faixa informa essa diferença.
+
+Favoritas, playlists, busca, fila, repetição, aleatório, volume e atalhos continuam disponíveis. MP3, WAV, OGG, M4A, AAC, FLAC, OPUS, AIFF e WEBM são reconhecidos; a reprodução depende dos codecs do Electron.
 
 ## Personalizar
 
@@ -30,9 +44,9 @@ A engrenagem abre temas claro/escuro/sistema, cor de destaque, fontes comuns ou 
 
 ## Dados locais
 
-Os áudios e o wallpaper ficam no IndexedDB do app; playlists, categorias e preferências são locais. A pasta do perfil no Windows é `%APPDATA%\Onda`. Atualizações mantêm o mesmo perfil. Desinstalar não apaga esse perfil automaticamente.
+Áudios importados e wallpaper ficam no IndexedDB; músicas embutidas ficam na pasta de recursos do programa. Playlists e preferências são locais. A pasta do perfil no Windows é `%APPDATA%\Onda`. Atualizações mantêm o mesmo perfil. Desinstalar não apaga esse perfil automaticamente.
 
-Não há conta nem sincronização: em outro computador você precisa importar suas músicas. Dados anteriormente importados no Live Server/navegador pertencem a outro perfil e não são transferidos automaticamente. Preserve os arquivos originais. O app funciona sem internet após instalado; a internet só é necessária para baixar/atualizar o instalador.
+Não há conta nem sincronização de favoritos e playlists. Outro computador recebe as músicas embutidas na versão instalada; as importadas manualmente precisam ser importadas novamente. Dados anteriormente importados no Live Server/navegador pertencem a outro perfil e não são transferidos automaticamente. Preserve os arquivos originais. O app funciona sem internet após instalado; a internet só é necessária para baixar/atualizar o instalador.
 
 ## Desenvolvimento
 

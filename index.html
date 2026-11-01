@@ -143,10 +143,6 @@
     <aside class="sidebar" aria-label="Navegação principal">
       <a class="brand" href="#library" aria-label="onda — início">onda</a>
       <nav class="main-nav" aria-label="Biblioteca">
-        <button class="nav-item" data-view="home">
-          <svg class="icon" aria-hidden="true"><use href="#i-music" /></svg
-          ><span>Início</span>
-        </button>
         <button class="nav-item active" data-view="library" aria-current="page">
           <svg class="icon" aria-hidden="true"><use href="#i-library" /></svg
           ><span>Todas as músicas</span
@@ -214,22 +210,6 @@
               </button>
             </div>
           </header>
-          <div id="genre-home">
-            <div class="genre-heading">
-              <h2>Categorias</h2>
-              <form id="genre-form">
-                <input
-                  class="text-input"
-                  id="new-genre"
-                  placeholder="Nova categoria"
-                  maxlength="40"
-                  aria-label="Nome da nova categoria"
-                  required
-                /><button class="button button-light">Criar</button>
-              </form>
-            </div>
-            <div id="genre-grid" class="genre-grid"></div>
-          </div>
           <div class="library-toolbar">
             <label class="search-field"
               ><svg class="icon" aria-hidden="true">
@@ -288,7 +268,8 @@
               </svg>
               <h2 id="empty-title">Nenhuma música</h2>
               <p id="empty-description">
-                Arraste arquivos de áudio ou adicione uma pasta.
+                Inclua seus arquivos na pasta musicas e gere o instalador, ou
+                adicione músicas por aqui.
               </p>
               <button class="button button-light" id="empty-import">
                 <svg class="icon" aria-hidden="true"><use href="#i-plus" /></svg
@@ -519,11 +500,10 @@
       </button>
       <h2 id="track-dialog-title">Organizar música</h2>
       <p id="track-dialog-artist"></p>
-      <label class="form-label" for="track-genre">Categoria</label
-      ><select class="text-input" id="track-genre"></select
-      ><button class="button button-light full-width" id="save-track-genre">
-        Salvar categoria
-      </button>
+      <p id="bundled-note" class="settings-note" hidden>
+        Esta música faz parte do instalador. Para removê-la, retire o arquivo da
+        pasta musicas e gere uma nova versão.
+      </p>
       <div id="add-to-playlist-controls">
         <label class="form-label" for="playlist-select"
           >Adicionar à playlist</label
