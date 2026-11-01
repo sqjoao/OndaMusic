@@ -196,6 +196,7 @@ else {
       }),
     );
     window = new BrowserWindow({
+      icon: path.join(__dirname, "icon.ico"),
       width: 1280,
       height: 850,
       minWidth: 760,

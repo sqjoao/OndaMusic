@@ -1,7 +1,7 @@
 {
   "name": "onda-player",
   "productName": "Onda",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Player pessoal de música para Windows",
   "author": "sqjoao",
   "private": true,
@@ -25,11 +25,13 @@
       "styles.css",
       "app.js",
       "desktop/main.cjs",
-      "package.json"
+      "package.json",
+      "desktop/icon.ico"
     ],
     "win": {
       "target": "nsis",
-      "artifactName": "onda-setup-${arch}.${ext}"
+      "artifactName": "onda-setup-${arch}.${ext}",
+      "icon": "desktop/icon.ico"
     },
     "nsis": {
       "oneClick": true,
