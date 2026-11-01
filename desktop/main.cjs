@@ -23,6 +23,7 @@ const bundledFiles = new Map();
 const catalog = [];
 
 async function scanMusic() {
+  let visited = 0;
   const root = app.isPackaged
     ? path.join(process.resourcesPath, "musicas")
     : path.join(app.getAppPath(), "musicas");
@@ -36,6 +37,8 @@ async function scanMusic() {
     }
     entries.sort((a, b) => a.name.localeCompare(b.name));
     for (const entry of entries) {
+      // Let window creation and painting proceed while a large library is read.
+      if (++visited % 250 === 0) await new Promise(setImmediate);
       const file = path.join(directory, entry.name);
       if (entry.isDirectory()) {
         await walk(file);
@@ -138,16 +141,30 @@ else {
     }
   });
   app.whenReady().then(async () => {
-    await scanMusic();
+    // Opening the window must not wait for every music directory to be scanned.
+    const libraryReady = scanMusic().then(
+      () => true,
+      (error) => {
+        console.error(
+          "Falha ao ler músicas incluídas:",
+          error.code || error.name,
+        );
+        return false;
+      },
+    );
     protocol.handle("onda", async (request) => {
       const url = new URL(request.url);
       if (url.hostname !== "app" || !["GET", "HEAD"].includes(request.method))
         return new Response("Not found", { status: 404 });
-      if (url.pathname === "/library.json")
+      if (url.pathname === "/library.json") {
+        if (!(await libraryReady))
+          return new Response("Library unavailable", { status: 503 });
         return new Response(
           request.method === "HEAD" ? null : JSON.stringify(catalog),
           { headers: { "Content-Type": "application/json; charset=utf-8" } },
         );
+      }
+      if (url.pathname.startsWith("/music/")) await libraryReady;
       if (bundledFiles.has(url.pathname)) {
         try {
           return await serveMusic(request, bundledFiles.get(url.pathname));

@@ -11,20 +11,18 @@ $previousProgress = $ProgressPreference
 try {
     New-Item -ItemType Directory -Path $temporary | Out-Null
     $ProgressPreference = 'SilentlyContinue'
-    Write-Host 'Baixando a ultima versao publicada do Onda...'
+    Write-Host "Instalando $([char]0x00FA)ltima vers$([char]0x00E3)o do Onda"
     try {
         Invoke-WebRequest -UseBasicParsing -Uri "$base/SHA256SUMS" -OutFile (Join-Path $temporary 'SHA256SUMS')
         Invoke-WebRequest -UseBasicParsing -Uri "$base/$file" -OutFile (Join-Path $temporary $file)
     } catch { throw "Nao foi possivel baixar o instalador. Verifique a internet e se a primeira release terminou em https://github.com/sqjoao/OndaMusic/releases . $($_.Exception.Message)" }
     $lines = @(Get-Content (Join-Path $temporary 'SHA256SUMS') | Where-Object { $_ -match ('^[a-fA-F0-9]{64}\s+\*?' + [regex]::Escape($file) + '$') })
-    if ($lines.Count -ne 1) { throw 'A lista de checksums nao contem exatamente um instalador compativel.' }
+    if ($lines.Count -ne 1) { throw 'Nao foi possivel validar o instalador desta versao.' }
     $expected = ($lines[0] -split '\s+')[0]
     $actual = (Get-FileHash -Algorithm SHA256 -Path (Join-Path $temporary $file)).Hash
-    if ($actual -ne $expected) { throw 'Checksum incorreto. O instalador nao sera executado.' }
-    Write-Host 'Checksum confirmado. Instalando para o usuario atual...'
+    if ($actual -ne $expected) { throw 'O arquivo recebido nao passou na verificacao de integridade. Instalacao cancelada.' }
     $process = Start-Process -FilePath (Join-Path $temporary $file) -ArgumentList '/S' -Wait -PassThru
     if ($process.ExitCode -ne 0) { throw "O instalador terminou com codigo $($process.ExitCode)." }
-    Write-Host 'Onda instalado. Abra pelo menu Iniciar ou pelo atalho na area de trabalho.'
 } finally {
     $ProgressPreference = $previousProgress
     if (Test-Path -LiteralPath $temporary) { Remove-Item -LiteralPath $temporary -Recurse -Force }

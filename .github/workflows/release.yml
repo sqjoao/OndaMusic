@@ -24,6 +24,37 @@ jobs:
           $tag = "v$version"
           if ('${{ github.ref_type }}' -eq 'tag' -and '${{ github.ref_name }}' -ne $tag) { throw 'Tag and package version differ.' }
           "RELEASE_TAG=$tag" >> $env:GITHUB_ENV
+      - name: Test installer messages and integrity checks
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $messages = New-Object 'System.Collections.Generic.List[string]'
+          $state = @{ Starts = 0; Corrupt = $false }
+          $scriptText = Get-Content install.ps1 -Raw
+          function Write-Host { param($Object) $messages.Add([string]$Object) }
+          function Invoke-WebRequest {
+            param([switch]$UseBasicParsing, [string]$Uri, [string]$OutFile)
+            if ($Uri.EndsWith('/SHA256SUMS')) {
+              $bytes = [Text.Encoding]::UTF8.GetBytes('installer test fixture')
+              $hash = [BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash($bytes)).Replace('-','').ToLowerInvariant()
+              "$hash  onda-setup-x64.exe`n$hash  onda-setup-arm64.exe" | Set-Content $OutFile
+            } else {
+              [IO.File]::WriteAllText($OutFile, $(if ($state.Corrupt) { 'corrupt' } else { 'installer test fixture' }), [Text.UTF8Encoding]::new($false))
+            }
+          }
+          function Start-Process {
+            param($FilePath, $ArgumentList, [switch]$Wait, [switch]$PassThru)
+            $state.Starts++
+            return [pscustomobject]@{ ExitCode = 0 }
+          }
+          & ([scriptblock]::Create($scriptText))
+          $expected = "Instalando $([char]0x00FA)ltima vers$([char]0x00E3)o do Onda"
+          if ($messages.Count -ne 1 -or $messages[0] -ne $expected -or $state.Starts -ne 1) { throw 'Installer output did not match the requested single status line.' }
+          $state.Corrupt = $true
+          $state.Starts = 0
+          $rejected = $false
+          try { & ([scriptblock]::Create($scriptText)) } catch { $rejected = $true }
+          if (-not $rejected -or $state.Starts -ne 0) { throw 'A corrupted installer was not blocked.' }
       - run: npm ci
       - run: npm run dist:win
       - name: Verify and publish installers

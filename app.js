@@ -1596,6 +1596,9 @@ function bindEvents() {
 }
 
 async function initialize() {
+  $("#collection-summary").textContent = "Carregando biblioteca…";
+  $("#empty-state").hidden = true;
+  $("#open-import").disabled = true;
   const preferences = readPreferences();
   audio.volume = state.volume;
   audio.muted = state.muted;
@@ -1649,6 +1652,7 @@ async function initialize() {
   }
   renderLibrary();
   renderPlayer();
+  $("#open-import").disabled = false;
 }
 
 void initialize();
