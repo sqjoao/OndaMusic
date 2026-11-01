@@ -1,0 +1,45 @@
+name: Release Windows
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: release-windows-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Check version
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json | ConvertFrom-Json).version
+          $tag = "v$version"
+          if ('${{ github.ref_type }}' -eq 'tag' -and '${{ github.ref_name }}' -ne $tag) { throw 'Tag and package version differ.' }
+          "RELEASE_TAG=$tag" >> $env:GITHUB_ENV
+      - run: npm ci
+      - run: npm run dist:win
+      - name: Verify and publish installers
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $assets = @('dist/onda-setup-x64.exe', 'dist/onda-setup-arm64.exe')
+          $lines = foreach ($asset in $assets) {
+            if (-not (Test-Path $asset)) { throw "Missing installer: $asset" }
+            $hash = (Get-FileHash -Algorithm SHA256 $asset).Hash.ToLowerInvariant()
+            "$hash  $([IO.Path]::GetFileName($asset))"
+          }
+          [IO.File]::WriteAllLines((Join-Path $pwd 'dist/SHA256SUMS'), $lines, [Text.UTF8Encoding]::new($false))
+          gh release view $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY *> $null
+          if ($LASTEXITCODE -eq 0) { throw 'This version already exists. Increment package.json instead of overwriting installers.' }
+          gh release create $env:RELEASE_TAG @assets dist/SHA256SUMS --repo $env:GITHUB_REPOSITORY --target '${{ github.sha }}' --title "Onda $env:RELEASE_TAG" --notes 'Instaladores Windows x64 e ARM64. Execute install.ps1 para instalar ou atualizar. Biblioteca e preferencias continuam locais.'
+          if ($LASTEXITCODE -ne 0) { throw 'Release publication failed.' }

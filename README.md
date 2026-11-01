@@ -1,114 +1,54 @@
-# onda.
+# Onda
 
-Um player de música pessoal para desktop, feito com HTML, CSS e JavaScript puro. Instalável como **PWA**, com janela própria e acesso offline. Sem contas, anúncios ou etapa de build.
+Player pessoal para **Windows 10/11 de 64 bits**, com instalador próprio. Não precisa manter navegador, VS Code, Node.js ou Git abertos para usar.
 
-## Instalar no PC
+## Instalar pelo terminal
 
-Depois de ativar a publicação abaixo, o endereço do app será **https://sqjoao.github.io/Music/**.
+Abra o **PowerShell** e execute:
 
-1. Abra esse endereço no **Chrome ou Edge** com conexão à internet.
-2. Abra **Configurações** (engrenagem) e clique em **Instalar no computador**. Também é possível usar a opção **Instalar onda** do menu ou da barra de endereço do navegador.
-3. Confirme a instalação. O onda aparecerá entre os aplicativos do computador e abrirá em uma janela própria.
-4. Aguarde a mensagem **Disponível offline neste dispositivo** nas configurações. Depois disso, abra pelo atalho mesmo sem internet e importe suas músicas normalmente.
+```powershell
+irm https://raw.githubusercontent.com/sqjoao/Music/main/install.ps1 | iex
+```
 
-Para instalar em outro PC, repita os passos usando **o mesmo endereço**. Não é preciso baixar o código, instalar Python ou manter o VS Code aberto. No Safari do Mac, a alternativa é **Arquivo → Adicionar ao Dock**. O nome da opção de instalação pode variar conforme a versão do navegador.
+O comando baixa o instalador da última versão publicada no [GitHub Releases](https://github.com/sqjoao/Music/releases/latest), verifica o SHA-256 e instala para o seu usuário, sem exigir administrador. O instalador cria os atalhos do Onda. Repita o mesmo comando para atualizar ou instalar em outro PC.
 
-Este é um app instalado pelo navegador, não um instalador `.exe`. Ele usa o navegador como base, mas funciona em sua própria janela. O navegador precisa continuar instalado.
+A primeira versão precisa terminar de ser gerada pelo workflow **Release Windows**. Se não existir uma release, o script informa que o instalador ainda não está disponível. O instalador não tem assinatura comercial: o Windows pode mostrar o SmartScreen identificando um editor desconhecido. O script mantém a verificação de HTTPS e de checksum e não altera as políticas de segurança do computador.
 
-### Publicar o endereço uma única vez
+## Biblioteca e categorias
 
-O projeto está pronto para hospedagem estática pelo GitHub Pages, sem configurar servidor ou adicionar dependências:
+A página inicial mostra Rock, Funk, Sertanejo, Pagode, Pop, MPB, Rap, Eletrônica e Sem categoria. Você também pode criar categorias.
 
-1. Abra [Settings → Pages do repositório](https://github.com/sqjoao/Music/settings/pages).
-2. Em **Build and deployment**, escolha **Deploy from a branch**.
-3. Selecione a branch **main**, pasta **/(root)**, e clique em **Save**.
-4. Aguarde o GitHub mostrar que a publicação terminou e abra o endereço informado por ele.
+- Para importar, abra **Biblioteca → Adicionar músicas**, ou abra uma categoria e importe nela. Arquivos importados dentro da categoria já ficam classificados nela.
+- Arquivos também podem ser arrastados para a janela. A seleção de uma pasta com subpastas nomeadas como as categorias permite classificar as faixas pelo nome da pasta.
+- Para mudar a categoria de uma música existente, abra seu menu de três pontos, escolha a categoria e clique em **Salvar categoria**.
+- Favoritas, playlists, busca, fila, repetição, aleatório, volume e atalhos continuam disponíveis.
+- O padrão `Artista - Música.mp3` separa artista e título. Tags ID3 ainda não são lidas. Os formatos reproduzíveis dependem dos codecs do Electron.
 
-O arquivo `.nojekyll` mantém a publicação como arquivos estáticos. O código-fonte já enviado ao GitHub não significa que o site já foi publicado.
+## Personalizar
 
-**Cada PC mantém sua própria biblioteca.** Músicas e playlists não são enviadas ao GitHub nem sincronizadas entre computadores: importe os arquivos em cada dispositivo. Dados que você já importou em `localhost`/Live Server continuam nessa origem e não aparecem automaticamente no endereço do GitHub Pages.
+A engrenagem abre temas claro/escuro/sistema, cor de destaque, fontes comuns ou outra fonte instalada no Windows, tamanho da interface, espaçamento e cantos arredondados. Você pode escolher um wallpaper PNG/JPEG/WebP de até 20 MB, suavização do fundo, opacidade e desfoque dos painéis. As escolhas ficam salvas; restaurar a aparência não apaga suas músicas.
 
-### Atualizações
+## Dados locais
 
-O app verifica novas versões quando é aberto ou volta a ficar online. Nas configurações, **Atualizar app** aparece quando uma versão está pronta. Esse botão reinicia o player; a atualização não interrompe uma música automaticamente. Fechar todas as janelas do app e reabrir também permite aplicar a próxima versão. Músicas, playlists e preferências continuam salvas.
+Os áudios e o wallpaper ficam no IndexedDB do app; playlists, categorias e preferências são locais. A pasta do perfil no Windows é `%APPDATA%\Onda`. Atualizações mantêm o mesmo perfil. Desinstalar não apaga esse perfil automaticamente.
 
-Ao modificar e publicar os arquivos do app, incremente `CACHE_VERSION` em `sw.js`. O navegador baixa o conjunto novo antes de oferecê-lo para uso offline. O cache contém só os arquivos da interface; os áudios continuam no IndexedDB.
+Não há conta nem sincronização: em outro computador você precisa importar suas músicas. Dados anteriormente importados no Live Server/navegador pertencem a outro perfil e não são transferidos automaticamente. Preserve os arquivos originais. O app funciona sem internet após instalado; a internet só é necessária para baixar/atualizar o instalador.
 
-## Desenvolver no VS Code
+## Desenvolvimento
 
-No **VS Code**, abra a pasta do projeto, instale a extensão **Live Server** e use **Open with Live Server** no arquivo `index.html`.
-
-Como alternativa, use Python:
-
-Na pasta do projeto, inicie um servidor de arquivos estáticos:
+Com Node.js 22.12+ (recomendado 24) instalado:
 
 ```sh
-cd /workspace/Music
-python3 -m http.server 8000 --bind 0.0.0.0
+npm ci
+npm start
 ```
 
-Em uma máquina local, abra `http://localhost:8000` no navegador. Também é possível usar outro servidor estático, como a extensão Live Server. Sirva os arquivos por HTTP em localhost ou por HTTPS; abrir `index.html` diretamente com `file://` não carrega os módulos JavaScript corretamente.
-
-## Adicionar músicas
-
-- Clique em **Adicionar músicas** ou arraste arquivos de áudio para a janela.
-- Para adicionar uma pasta, use **Importar uma pasta inteira**. Navegadores compatíveis também permitem arrastar a pasta para o app.
-- Se a playlist estiver aberta, a importação também adicionará as faixas a ela.
-- Use nomes como `Artista - Música.mp3` para separar artista e título. Sem esse padrão, o nome do arquivo vira o título. Esta versão não lê tags ID3 ou capas embutidas.
-- Arquivos com o mesmo nome, tamanho e data de modificação são tratados como duplicados. Arquivos inválidos ou sem suporte no navegador não são adicionados.
-
-O navegador precisa permitir armazenamento local. MP3, WAV, OGG, M4A, AAC, FLAC e outros formatos são aceitos para verificação, mas a reprodução depende dos codecs disponíveis no navegador e no sistema operacional.
-
-## Recursos
-
-- Reproduzir, pausar, avançar, voltar, buscar na faixa e ajustar ou silenciar o volume.
-- Fila, ordem aleatória, repetição da fila ou de uma música.
-- Criar, renomear e excluir playlists; adicionar e remover faixas sem duplicar os arquivos.
-- Favoritas, busca por nome/artista e ordenação.
-- Atalhos de teclado, controles acessíveis e integração com as teclas de mídia quando o navegador oferece suporte.
-- Restauração da biblioteca, playlists, volume, fila e posição da última faixa. A reprodução nunca recomeça automaticamente ao abrir a página.
-
-## Aparência
-
-Clique na **engrenagem** ao lado de **Adicionar músicas** para abrir as configurações:
-
-- **Tema:** claro, escuro ou seguindo o sistema. No modo Sistema, o app acompanha mudanças de aparência do dispositivo.
-- **Cor de destaque:** escolha uma das cores prontas, use o seletor de cor ou informe um código hexadecimal. A mudança aparece na hora.
-- **Restaurar padrão:** volta ao tema do sistema e à cor grafite, sem alterar músicas, playlists ou reprodução.
-
-A aparência é salva automaticamente neste navegador. O texto dos controles mantém contraste mesmo com cores muito claras ou escuras.
-
-## Armazenamento e privacidade
-
-Os áudios são copiados para o **IndexedDB** do navegador. As preferências ficam no **localStorage**. Nada é enviado a um servidor; o servidor acima somente entrega os arquivos do app. Não são necessárias chaves, variáveis de ambiente ou conexão com serviços de música.
-
-As músicas ficam disponíveis na mesma origem (protocolo, endereço e porta), no mesmo perfil de navegador. Não há sincronização entre dispositivos. O app não monitora automaticamente pastas do computador: é preciso importar os arquivos pela interface. Apagar os dados do site ou do navegador também apaga a coleção local. O espaço disponível depende da cota do navegador; **mantenha uma cópia dos arquivos originais**.
-
-Esta é uma aplicação web. Não há aplicativo Android nem empacotamento nativo nesta etapa.
-
-## Estrutura
-
-```text
-index.html     Interface, ícones locais e janelas de diálogo
-styles.css     Estilos e adaptação de layout
-appearance.js  Temas, cores e preferências de aparência
-app.js         Reprodução, importação e interações
-storage.js     Persistência e transações do IndexedDB
-pwa.js         Instalação, acesso offline e atualização
-sw.js          Cache dos arquivos do app
-manifest.webmanifest  Identidade e configuração da instalação
-icons/         Ícones do app
-tests/pwa_smoke.py  Testes de instalação, cache, atualização e áudio offline
-```
-
-Nenhuma fonte, imagem, script ou dependência de terceiros é carregada pelo app.
-
-### Validação de desenvolvimento
-
-Com Python, Playwright para Python e Chromium disponíveis, execute:
+Para gerar instaladores Windows no Windows:
 
 ```sh
-python3 tests/pwa_smoke.py
+npm run dist:win
 ```
 
-O teste usa uma cópia temporária do projeto para validar `/Music/`, fechamento e reabertura offline com áudio real, dados salvos e atualização sem interromper a reprodução. Ele não altera os arquivos do app nem executa uma instalação no sistema operacional. `CHROMIUM_EXECUTABLE` permite indicar outro executável de Chromium. Essas ferramentas são apenas para desenvolvimento; não são necessárias para instalar ou usar o onda.
+O workflow em `.github/workflows/release.yml` gera as versões x64 e ARM64 e publica os instaladores com `SHA256SUMS` quando uma tag `v<versão>` é enviada. O número da tag deve corresponder ao `package.json`. Não é necessário configurar GitHub Pages. O aplicativo usa Electron com renderer isolado, sem Node.js na página, e carrega somente arquivos locais.
+
+Os arquivos da interface continuam sendo `index.html`, `styles.css` e `app.js` (inclui reprodução, armazenamento e aparência). `desktop/main.cjs` abre a janela nativa. `package.json` e `package-lock.json` fixam a construção. `install.ps1` instala a versão publicada. Arquivos de PWA, manifestos do navegador e service workers foram removidos.

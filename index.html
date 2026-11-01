@@ -9,13 +9,12 @@
       content="Player de música pessoal com biblioteca local, playlists e temas."
     />
     <title>onda — Player de música</title>
-    <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="icons/icon-180.png" />
-    <link rel="manifest" href="manifest.webmanifest" />
-    <script src="appearance.js"></script>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%2352525b'/%3E%3Cpath d='M14 34v-4m9 13V21m9 30V13m9 30V21m9 13v-4' stroke='%23fff' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E"
+    />
     <link rel="stylesheet" href="styles.css" />
     <script type="module" src="app.js"></script>
-    <script type="module" src="pwa.js"></script>
   </head>
   <body>
     <svg
@@ -144,6 +143,10 @@
     <aside class="sidebar" aria-label="Navegação principal">
       <a class="brand" href="#library" aria-label="onda — início">onda</a>
       <nav class="main-nav" aria-label="Biblioteca">
+        <button class="nav-item" data-view="home">
+          <svg class="icon" aria-hidden="true"><use href="#i-music" /></svg
+          ><span>Início</span>
+        </button>
         <button class="nav-item active" data-view="library" aria-current="page">
           <svg class="icon" aria-hidden="true"><use href="#i-library" /></svg
           ><span>Todas as músicas</span
@@ -211,6 +214,22 @@
               </button>
             </div>
           </header>
+          <div id="genre-home">
+            <div class="genre-heading">
+              <h2>Categorias</h2>
+              <form id="genre-form">
+                <input
+                  class="text-input"
+                  id="new-genre"
+                  placeholder="Nova categoria"
+                  maxlength="40"
+                  aria-label="Nome da nova categoria"
+                  required
+                /><button class="button button-light">Criar</button>
+              </form>
+            </div>
+            <div id="genre-grid" class="genre-grid"></div>
+          </div>
           <div class="library-toolbar">
             <label class="search-field"
               ><svg class="icon" aria-hidden="true">
@@ -250,7 +269,7 @@
           </div>
           <div id="storage-error" class="storage-error" role="alert" hidden>
             O armazenamento local não está disponível. Permita o armazenamento
-            no navegador para importar músicas.
+            no aplicativo para importar músicas.
           </div>
           <div class="library-panel" id="library-panel">
             <div class="track-table-heading" aria-hidden="true">
@@ -443,12 +462,12 @@
       <div class="import-info">
         <svg class="icon"><use href="#i-lock" /></svg>
         <p>
-          Os arquivos ficam neste navegador e não são enviados para nenhum
+          Os arquivos ficam neste computador e não são enviados para nenhum
           servidor. Mantenha uma cópia dos seus originais.
         </p>
       </div>
       <p class="format-note">
-        *A reprodução de cada formato depende do suporte do navegador.
+        *A reprodução de cada formato depende do suporte do aplicativo.
       </p>
     </dialog>
 
@@ -510,6 +529,11 @@
       </button>
       <h2 id="track-dialog-title">Organizar música</h2>
       <p id="track-dialog-artist"></p>
+      <label class="form-label" for="track-genre">Categoria</label
+      ><select class="text-input" id="track-genre"></select
+      ><button class="button button-light full-width" id="save-track-genre">
+        Salvar categoria
+      </button>
       <div id="add-to-playlist-controls">
         <label class="form-label" for="playlist-select"
           >Adicionar à playlist</label
@@ -676,45 +700,76 @@
           Use um código hexadecimal, como #4666e5.
         </p>
       </fieldset>
-      <section class="app-settings" aria-labelledby="app-settings-title">
-        <h3 id="app-settings-title">Aplicativo</h3>
-        <button class="button button-light full-width" id="install-app">
-          <svg class="icon" aria-hidden="true"><use href="#i-monitor" /></svg>
-          Instalar no computador
+      <fieldset class="appearance-fieldset">
+        <legend>Conforto e layout</legend>
+        <label class="form-label" for="ui-font">Fonte</label
+        ><select class="text-input" id="ui-font">
+          <option value="system">Sistema</option>
+          <option>Arial</option>
+          <option>Verdana</option>
+          <option>Georgia</option>
+          <option>Courier New</option>
+        </select>
+        <label class="form-label" for="custom-font"
+          >Outra fonte instalada no PC</label
+        ><input
+          class="text-input"
+          id="custom-font"
+          placeholder="Ex.: Consolas"
+          maxlength="60"
+        />
+        <label class="form-label" for="ui-scale">Tamanho da interface</label
+        ><select class="text-input" id="ui-scale">
+          <option value="0.9">90%</option>
+          <option value="1">100%</option>
+          <option value="1.1">110%</option>
+          <option value="1.2">120%</option>
+        </select>
+        <label class="form-label" for="ui-density">Espaçamento</label
+        ><select class="text-input" id="ui-density">
+          <option value="comfortable">Confortável</option>
+          <option value="compact">Compacto</option>
+        </select>
+        <label class="form-label" for="ui-radius">Cantos arredondados</label
+        ><input id="ui-radius" type="range" min="0" max="20" value="8" />
+      </fieldset>
+      <fieldset class="appearance-fieldset">
+        <legend>Wallpaper</legend>
+        <input
+          id="wallpaper-file"
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          hidden
+        /><button class="button button-light" id="choose-wallpaper">
+          Escolher imagem
         </button>
-        <p id="install-status" role="status">
-          Instale para abrir em uma janela própria.
+        <button class="text-button" id="remove-wallpaper">
+          Remover imagem
+        </button>
+        <p id="wallpaper-status" class="settings-note" role="status">
+          A imagem fica salva neste computador.
         </p>
-        <details id="install-help">
-          <summary>Instruções de instalação</summary>
-          <p>
-            No Chrome ou Edge, abra o menu do navegador e procure
-            <strong>Instalar onda</strong> ou
-            <strong>Aplicativos → Instalar este site como aplicativo</strong>.
-            Você também pode usar o ícone de instalação na barra de endereço.
-          </p>
-          <p>
-            No Safari do Mac, use <strong>Arquivo → Adicionar ao Dock</strong>.
-            Se seu navegador não oferecer instalação, abra o endereço no Chrome
-            ou Edge.
-          </p>
-        </details>
-        <p id="offline-status" role="status">Preparando acesso offline…</p>
-        <div id="app-update" hidden>
-          <p id="update-status" role="status">
-            Uma atualização está disponível. Aplicar reinicia o player.
-          </p>
-          <button class="button button-light" id="update-app">
-            Atualizar app
-          </button>
-        </div>
-      </section>
+        <label class="form-label" for="wallpaper-dim">Suavizar o fundo</label
+        ><input
+          id="wallpaper-dim"
+          type="range"
+          min="0.15"
+          max="0.95"
+          step="0.05"
+          value="0.6"
+        />
+        <label class="form-label" for="panel-opacity"
+          >Opacidade dos painéis</label
+        ><input id="panel-opacity" type="range" min="50" max="100" value="90" />
+        <label class="form-label" for="panel-blur">Desfoque dos painéis</label
+        ><input id="panel-blur" type="range" min="0" max="24" value="10" />
+      </fieldset>
       <div class="settings-footer">
         <button class="text-button" id="reset-appearance">
           Restaurar padrão
         </button>
         <p id="appearance-status" role="status">
-          Salvo automaticamente neste navegador.
+          Salvo automaticamente neste computador.
         </p>
       </div>
     </dialog>

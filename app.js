@@ -1,10 +1,420 @@
-import {
-  openDatabase,
-  readAll,
-  saveRecord,
-  deletePlaylist,
-  deleteTrack,
-} from "./storage.js";
+// Audio files and playlists stay on this origin, inside the browser's IndexedDB.
+const DATABASE_NAME = "onda-player";
+let databasePromise;
+
+function openDatabase() {
+  if (databasePromise) return databasePromise;
+  databasePromise = new Promise((resolve, reject) => {
+    const request = indexedDB.open(DATABASE_NAME, 2);
+    request.onupgradeneeded = () => {
+      const database = request.result;
+      if (!database.objectStoreNames.contains("tracks")) {
+        const tracks = database.createObjectStore("tracks", { keyPath: "id" });
+        tracks.createIndex("fingerprint", "fingerprint", { unique: true });
+      }
+      if (!database.objectStoreNames.contains("playlists"))
+        database.createObjectStore("playlists", { keyPath: "id" });
+      if (!database.objectStoreNames.contains("settings"))
+        database.createObjectStore("settings", { keyPath: "id" });
+    };
+    request.onsuccess = () => {
+      request.result.onversionchange = () => request.result.close();
+      resolve(request.result);
+    };
+    request.onerror = () => reject(request.error);
+    request.onblocked = () =>
+      reject(new Error("Feche outras abas do onda e tente novamente."));
+  });
+  return databasePromise;
+}
+
+async function transaction(stores, mode, action) {
+  const database = await openDatabase();
+  return new Promise((resolve, reject) => {
+    const tx = database.transaction(stores, mode);
+    let result;
+    tx.oncomplete = () => resolve(result);
+    tx.onerror = () =>
+      reject(tx.error || new Error("Falha no armazenamento local."));
+    tx.onabort = () =>
+      reject(tx.error || new Error("Operação de armazenamento cancelada."));
+    try {
+      action(tx, (value) => {
+        result = value;
+      });
+    } catch (error) {
+      tx.abort();
+      reject(error);
+    }
+  });
+}
+
+function readAll(store) {
+  return transaction([store], "readonly", (tx, done) => {
+    tx.objectStore(store).getAll().onsuccess = (event) =>
+      done(event.target.result);
+  });
+}
+
+function saveRecord(store, record) {
+  return transaction([store], "readwrite", (tx) =>
+    tx.objectStore(store).put(record),
+  );
+}
+
+function deletePlaylist(id) {
+  return transaction(["playlists"], "readwrite", (tx) =>
+    tx.objectStore("playlists").delete(id),
+  );
+}
+
+// Removing a song and its playlist references must either both succeed or both fail.
+function deleteTrack(id, playlists) {
+  return transaction(["tracks", "playlists"], "readwrite", (tx) => {
+    tx.objectStore("tracks").delete(id);
+    for (const playlist of playlists) tx.objectStore("playlists").put(playlist);
+  });
+}
+
+// Apply the saved theme before the stylesheet and first paint.
+// A separate key keeps appearance changes independent from playback data.
+(() => {
+  const STORAGE_KEY = "onda:appearance:v1";
+  const DEFAULTS = {
+    theme: "system",
+    accent: "#52525b",
+    font: "system",
+    customFont: "",
+    scale: "1",
+    density: "comfortable",
+    radius: "8",
+    dim: "0.6",
+    opacity: "90",
+    blur: "10",
+  };
+  const root = document.documentElement;
+  const systemTheme = window.matchMedia("(prefers-color-scheme: dark)");
+  let settings = readSettings();
+  let storageAvailable = true;
+
+  function normalizeHex(value) {
+    if (typeof value !== "string") return null;
+    const hex = value.trim().replace(/^#/, "");
+    if (/^[a-f\d]{3}$/i.test(hex)) {
+      return `#${[...hex].map((character) => character.repeat(2)).join("")}`.toLowerCase();
+    }
+    return /^[a-f\d]{6}$/i.test(hex) ? `#${hex.toLowerCase()}` : null;
+  }
+
+  function readSettings(raw) {
+    try {
+      const saved = JSON.parse(
+        raw === undefined ? localStorage.getItem(STORAGE_KEY) : raw,
+      );
+      return {
+        theme: ["light", "dark", "system"].includes(saved?.theme)
+          ? saved.theme
+          : DEFAULTS.theme,
+        accent: normalizeHex(saved?.accent) || DEFAULTS.accent,
+        ...Object.fromEntries(
+          Object.entries(DEFAULTS)
+            .filter(([key]) => !["theme", "accent"].includes(key))
+            .map(([key, value]) => [
+              key,
+              typeof saved?.[key] === "string" ? saved[key] : value,
+            ]),
+        ),
+      };
+    } catch {
+      return { ...DEFAULTS };
+    }
+  }
+
+  function rgb(hex) {
+    return [1, 3, 5].map((offset) =>
+      parseInt(hex.slice(offset, offset + 2), 16),
+    );
+  }
+
+  function mix(color, target, amount) {
+    return color.map((channel, index) =>
+      Math.round(channel * (1 - amount) + target[index] * amount),
+    );
+  }
+
+  function luminance(color) {
+    return color.reduce((total, channel, index) => {
+      const value = channel / 255;
+      const linear =
+        value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+      return total + linear * [0.2126, 0.7152, 0.0722][index];
+    }, 0);
+  }
+
+  function contrast(first, second) {
+    const a = luminance(first);
+    const b = luminance(second);
+    return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+  }
+
+  function css(color) {
+    return `rgb(${color.join(", ")})`;
+  }
+
+  function applyAppearance() {
+    const dark =
+      settings.theme === "dark" ||
+      (settings.theme === "system" && systemTheme.matches);
+    const background = rgb(dark ? "#151517" : "#fafafa");
+    const surface = rgb(dark ? "#1c1c1f" : "#ffffff");
+    const foreground = rgb(dark ? "#ededf0" : "#242428");
+    const accent = rgb(settings.accent);
+    const subtle = mix(accent, surface, 0.92);
+    const onAccent =
+      contrast(accent, [255, 255, 255]) >= contrast(accent, [0, 0, 0])
+        ? [255, 255, 255]
+        : [0, 0, 0];
+    // Keep the selected fill, but ensure text and focus rings stay readable,
+    // including when a white, black or yellow accent is chosen.
+    let ink = accent;
+    for (let step = 0; step <= 20; step++) {
+      ink = mix(accent, foreground, step / 20);
+      if (
+        [background, surface, subtle].every(
+          (color) => contrast(ink, color) >= 4.8,
+        )
+      )
+        break;
+    }
+    const bounded = (value, min, max, fallback) =>
+      Number.isFinite(Number(value))
+        ? Math.max(min, Math.min(max, Number(value)))
+        : fallback;
+    root.style.fontFamily = settings.customFont.trim()
+      ? JSON.stringify(settings.customFont.trim().slice(0, 60)) + ", sans-serif"
+      : settings.font === "system"
+        ? '"Segoe UI", sans-serif'
+        : JSON.stringify(settings.font) + ", sans-serif";
+    root.style.zoom = bounded(settings.scale, 0.9, 1.2, 1);
+    root.style.setProperty(
+      "--row-height",
+      settings.density === "compact" ? "48px" : "65px",
+    );
+    root.style.setProperty(
+      "--row-padding",
+      settings.density === "compact" ? "7px" : "14px",
+    );
+    root.style.setProperty(
+      "--corner-radius",
+      bounded(settings.radius, 0, 20, 8) + "px",
+    );
+    root.style.setProperty(
+      "--wallpaper-dim",
+      bounded(settings.dim, 0.15, 0.95, 0.6),
+    );
+    root.style.setProperty(
+      "--panel-opacity",
+      bounded(settings.opacity, 50, 100, 90) + "%",
+    );
+    root.style.setProperty(
+      "--panel-blur",
+      bounded(settings.blur, 0, 24, 10) + "px",
+    );
+    root.dataset.theme = dark ? "dark" : "light";
+    root.style.setProperty("--accent", settings.accent);
+    root.style.setProperty("--accent-on", css(onAccent));
+    root.style.setProperty("--accent-ink", css(ink));
+    root.style.setProperty("--accent-soft", css(subtle));
+    document
+      .querySelector('meta[name="theme-color"]')
+      ?.setAttribute("content", css(background));
+  }
+
+  function renderControls() {
+    for (const input of document.querySelectorAll('input[name="theme"]'))
+      input.checked = input.value === settings.theme;
+    for (const button of document.querySelectorAll("[data-accent]"))
+      button.setAttribute(
+        "aria-pressed",
+        String(button.dataset.accent === settings.accent),
+      );
+    for (const [id, key] of Object.entries({
+      "ui-font": "font",
+      "custom-font": "customFont",
+      "ui-scale": "scale",
+      "ui-density": "density",
+      "ui-radius": "radius",
+      "wallpaper-dim": "dim",
+      "panel-opacity": "opacity",
+      "panel-blur": "blur",
+    })) {
+      const input = document.getElementById(id);
+      if (input && document.activeElement !== input)
+        input.value = settings[key];
+    }
+    const picker = document.querySelector("#accent-color");
+    const hex = document.querySelector("#accent-hex");
+    if (picker) picker.value = settings.accent;
+    if (hex) {
+      hex.value = settings.accent;
+      hex.setAttribute("aria-invalid", "false");
+      document.querySelector("#color-error").hidden = true;
+    }
+    const status = document.querySelector("#appearance-status");
+    if (status)
+      status.textContent = storageAvailable
+        ? "Salvo automaticamente neste computador."
+        : "A aparência foi aplicada, mas o aplicativo não permitiu salvar a preferência.";
+  }
+
+  function updateSettings(changes) {
+    settings = { ...settings, ...changes };
+    applyAppearance();
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+      storageAvailable = true;
+    } catch {
+      storageAvailable = false;
+    }
+    renderControls();
+  }
+
+  function bindControls() {
+    const dialog = document.querySelector("#settings-dialog");
+    document
+      .querySelector("#open-settings")
+      .addEventListener("click", () => dialog.showModal());
+    for (const input of document.querySelectorAll('input[name="theme"]')) {
+      input.addEventListener("change", () => {
+        if (input.checked) updateSettings({ theme: input.value });
+      });
+    }
+    for (const button of document.querySelectorAll("[data-accent]")) {
+      button.addEventListener("click", () =>
+        updateSettings({ accent: button.dataset.accent }),
+      );
+    }
+    document
+      .querySelector("#accent-color")
+      .addEventListener("input", (event) => {
+        const accent = normalizeHex(event.target.value);
+        if (accent) updateSettings({ accent });
+      });
+    const hex = document.querySelector("#accent-hex");
+    const commitHex = () => {
+      const accent = normalizeHex(hex.value);
+      hex.setAttribute("aria-invalid", String(!accent));
+      document.querySelector("#color-error").hidden = Boolean(accent);
+      if (accent) updateSettings({ accent });
+    };
+    hex.addEventListener("change", commitHex);
+    hex.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        commitHex();
+      }
+    });
+    hex.addEventListener("input", () => {
+      hex.setAttribute("aria-invalid", "false");
+      document.querySelector("#color-error").hidden = true;
+    });
+    document
+      .querySelector("#reset-appearance")
+      .addEventListener("click", () => updateSettings(DEFAULTS));
+    for (const [id, key] of Object.entries({
+      "ui-font": "font",
+      "custom-font": "customFont",
+      "ui-scale": "scale",
+      "ui-density": "density",
+      "ui-radius": "radius",
+      "wallpaper-dim": "dim",
+      "panel-opacity": "opacity",
+      "panel-blur": "blur",
+    }))
+      document
+        .getElementById(id)
+        .addEventListener("input", (event) =>
+          updateSettings({ [key]: event.target.value }),
+        );
+    let wallpaperURL;
+    function showWallpaper(file) {
+      if (wallpaperURL) URL.revokeObjectURL(wallpaperURL);
+      wallpaperURL = file ? URL.createObjectURL(file) : null;
+      document.body.classList.toggle("has-wallpaper", Boolean(file));
+      root.style.setProperty(
+        "--wallpaper",
+        wallpaperURL ? `url("${wallpaperURL}")` : "none",
+      );
+    }
+    document
+      .querySelector("#choose-wallpaper")
+      .addEventListener("click", () =>
+        document.querySelector("#wallpaper-file").click(),
+      );
+    document
+      .querySelector("#wallpaper-file")
+      .addEventListener("change", async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+        try {
+          if (
+            !["image/png", "image/jpeg", "image/webp"].includes(file.type) ||
+            file.size > 20 * 1024 * 1024
+          )
+            throw Error("Use PNG, JPEG ou WebP de até 20 MB.");
+          const probe = await createImageBitmap(file);
+          probe.close();
+          await saveRecord("settings", { id: "wallpaper", file });
+          showWallpaper(file);
+          document.querySelector("#wallpaper-status").textContent =
+            "Wallpaper salvo.";
+        } catch (error) {
+          document.querySelector("#wallpaper-status").textContent =
+            error.message || "Não foi possível salvar a imagem.";
+        } finally {
+          event.target.value = "";
+        }
+      });
+    document
+      .querySelector("#remove-wallpaper")
+      .addEventListener("click", async () => {
+        try {
+          await saveRecord("settings", { id: "wallpaper", file: null });
+          showWallpaper(null);
+          document.querySelector("#wallpaper-status").textContent =
+            "Wallpaper removido.";
+        } catch {
+          document.querySelector("#wallpaper-status").textContent =
+            "Não foi possível remover o wallpaper.";
+        }
+      });
+    readAll("settings")
+      .then((records) =>
+        showWallpaper(
+          records.find((record) => record.id === "wallpaper")?.file,
+        ),
+      )
+      .catch(() => {});
+    document
+      .querySelector("#reset-appearance")
+      .addEventListener("click", () =>
+        document.querySelector("#remove-wallpaper").click(),
+      );
+    renderControls();
+  }
+
+  systemTheme.addEventListener("change", () => {
+    if (settings.theme === "system") applyAppearance();
+  });
+  window.addEventListener("storage", (event) => {
+    if (event.key !== STORAGE_KEY && event.key !== null) return;
+    settings = readSettings(event.newValue);
+    applyAppearance();
+    renderControls();
+  });
+  applyAppearance();
+  document.addEventListener("DOMContentLoaded", bindControls, { once: true });
+})();
 
 const $ = (selector) => document.querySelector(selector);
 const audio = $("#audio");
@@ -17,7 +427,7 @@ const AUDIO_EXTENSION = /\.(mp3|wav|ogg|oga|m4a|aac|flac|opus|aif|aiff|webm)$/i;
 const state = {
   tracks: [],
   playlists: [],
-  view: "library",
+  view: "home",
   search: "",
   sort: "recent",
   currentId: null,
@@ -109,8 +519,8 @@ function storageError(error) {
   );
   toast(
     error?.name === "QuotaExceededError"
-      ? "O armazenamento está cheio. Libere espaço no navegador antes de importar mais músicas."
-      : "Não foi possível salvar. Verifique se o navegador permite armazenamento local.",
+      ? "O armazenamento está cheio. Libere espaço no aplicativo antes de importar mais músicas."
+      : "Não foi possível salvar. Verifique se o aplicativo permite armazenamento local.",
     true,
   );
 }
@@ -164,6 +574,10 @@ function viewTracks(includeSearch = true) {
   let tracks = playlist
     ? playlist.trackIds.map((id) => getTrack(id)).filter(Boolean)
     : [...state.tracks];
+  if (state.view.startsWith("genre:"))
+    tracks = tracks.filter(
+      (track) => (track.genre || "Sem categoria") === state.view.slice(6),
+    );
   if (state.view === "favorites")
     tracks = tracks.filter((track) => track.favorite);
   // "Recentes" lists the collection in import order by default.
@@ -213,17 +627,34 @@ function renderNavigation() {
 function renderLibrary() {
   const playlist = currentPlaylist();
   const titles = {
+    home: "Suas músicas",
     library: "Biblioteca",
     favorites: "Favoritas",
     recent: "Recentes",
   };
-  const title = playlist?.name || titles[state.view] || "Biblioteca";
+  const title =
+    playlist?.name ||
+    (state.view.startsWith("genre:")
+      ? state.view.slice(6)
+      : titles[state.view]) ||
+    "Biblioteca";
   const tracks = viewTracks();
   const allViewTracks = viewTracks(false);
   $("#view-title").textContent = title;
   $("#collection-summary").textContent = allViewTracks.length
     ? `${countLabel(allViewTracks.length)} · ${totalTime(allViewTracks)}`
     : countLabel(0);
+  const home = state.view === "home";
+  $("#genre-home").hidden = !home;
+  $(".library-toolbar").hidden = home;
+  $("#library-panel").hidden = home;
+  $("#open-import").hidden = home;
+  $("#genre-grid").innerHTML = allGenres()
+    .map(
+      (genre, index) =>
+        `<button class="genre-card" data-genre="${escapeHTML(genre)}"><span class="genre-index">${String(index + 1).padStart(2, "0")}</span><strong>${escapeHTML(genre)}</strong><span>${countLabel(state.tracks.filter((track) => (track.genre || "Sem categoria") === genre).length)}</span></button>`,
+    )
+    .join("");
   $("#edit-playlist").hidden = !playlist;
   $("#play-all").disabled = !tracks.length;
   $("#shuffle-all").disabled = !tracks.length;
@@ -567,6 +998,12 @@ function organizeTrack(id) {
   const track = getTrack(id);
   if (!track) return;
   organizingTrackId = id;
+  $("#track-genre").innerHTML = allGenres()
+    .map(
+      (genre) =>
+        `<option${genre === (track.genre || "Sem categoria") ? " selected" : ""}>${escapeHTML(genre)}</option>`,
+    )
+    .join("");
   $("#track-dialog-title").textContent = track.title;
   $("#track-dialog-artist").textContent = track.artist;
   const available = state.playlists.filter(
@@ -752,6 +1189,7 @@ async function importFiles(fileList) {
   const files = Array.from(fileList);
   if (!files.length) return;
   const destinationId = currentPlaylist()?.id;
+  if (state.view === "home") setView("library");
   state.importing = true;
   showDialog("#import-dialog");
   $("#import-progress").hidden = false;
@@ -799,6 +1237,9 @@ async function importFiles(fileList) {
         file,
         duration,
         format: file.name.split(".").pop().toLowerCase(),
+        genre: state.view.startsWith("genre:")
+          ? state.view.slice(6)
+          : inferGenre(file),
         favorite: false,
         importedAt: Date.now(),
       };
@@ -896,7 +1337,7 @@ function bindEvents() {
     button.addEventListener("click", () => setView(button.dataset.view));
   $(".brand").addEventListener("click", (event) => {
     event.preventDefault();
-    setView("library");
+    setView("home");
   });
   $("#playlist-nav").addEventListener("click", (event) => {
     const button = event.target.closest("[data-playlist-view]");
@@ -1180,6 +1621,7 @@ async function initialize() {
   const preferences = readPreferences();
   audio.volume = state.volume;
   audio.muted = state.muted;
+  bindCategories();
   bindEvents();
   renderPlayer();
   try {
@@ -1212,6 +1654,83 @@ async function initialize() {
   }
   renderLibrary();
   renderPlayer();
+}
+
+const DEFAULT_GENRES = [
+  "Rock",
+  "Funk",
+  "Sertanejo",
+  "Pagode",
+  "Pop",
+  "MPB",
+  "Rap",
+  "Eletrônica",
+];
+let customGenres = [];
+try {
+  const saved = JSON.parse(localStorage.getItem("onda:genres:v1"));
+  if (Array.isArray(saved))
+    customGenres = saved.filter(
+      (value) => typeof value === "string" && value.length <= 40,
+    );
+} catch {}
+function allGenres() {
+  return [
+    ...new Set([
+      ...DEFAULT_GENRES,
+      ...customGenres,
+      ...state.tracks.map((track) => track.genre).filter(Boolean),
+      "Sem categoria",
+    ]),
+  ];
+}
+function inferGenre(file) {
+  const path = (file.webkitRelativePath || "").toLocaleLowerCase("pt-BR");
+  return (
+    allGenres().find((genre) =>
+      path
+        .split("/")
+        .some(
+          (part) =>
+            part.toLocaleLowerCase("pt-BR") ===
+            genre.toLocaleLowerCase("pt-BR"),
+        ),
+    ) || "Sem categoria"
+  );
+}
+function bindCategories() {
+  $("#genre-grid").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-genre]");
+    if (button) setView("genre:" + button.dataset.genre);
+  });
+  $("#genre-form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const name = $("#new-genre").value.trim();
+    if (!name) return;
+    try {
+      const updated = [...new Set([...customGenres, name])];
+      localStorage.setItem("onda:genres:v1", JSON.stringify(updated));
+      customGenres = updated;
+      $("#new-genre").value = "";
+      renderLibrary();
+    } catch {
+      toast("Não foi possível salvar a categoria.", true);
+    }
+  });
+  $("#save-track-genre").addEventListener("click", async () => {
+    const track = getTrack(organizingTrackId);
+    if (!track) return;
+    try {
+      const updated = { ...track, genre: $("#track-genre").value };
+      await saveRecord("tracks", updated);
+      Object.assign(track, updated);
+      $("#track-dialog").close();
+      renderLibrary();
+      toast("Categoria salva.");
+    } catch (error) {
+      storageError(error);
+    }
+  });
 }
 
 void initialize();
