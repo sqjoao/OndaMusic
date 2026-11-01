@@ -47,13 +47,6 @@ jobs:
             $state.Starts++
             return [pscustomobject]@{ ExitCode = 0 }
           }
-          function gh {
-            $directory = $args[[Array]::IndexOf($args, '--dir') + 1]
-            $file = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { 'onda-setup-arm64.exe' } else { 'onda-setup-x64.exe' }
-            Invoke-WebRequest -Uri 'https://test/SHA256SUMS' -OutFile (Join-Path $directory 'SHA256SUMS')
-            Invoke-WebRequest -Uri "https://test/$file" -OutFile (Join-Path $directory $file)
-            $global:LASTEXITCODE = 0
-          }
           & ([scriptblock]::Create($scriptText))
           $expected = "Instalando $([char]0x00FA)ltima vers$([char]0x00E3)o do Onda"
           if ($messages.Count -ne 1 -or $messages[0] -ne $expected -or $state.Starts -ne 1) { throw 'Installer output did not match the requested single status line.' }

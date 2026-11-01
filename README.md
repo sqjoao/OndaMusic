@@ -4,25 +4,13 @@ Player pessoal para **Windows 10/11 de 64 bits**, com instalador próprio. Não 
 
 ## Instalar pelo terminal
 
-Como o repositório é **privado**, configure o acesso uma vez em cada PC. Abra o **PowerShell**:
+Abra o **PowerShell** e execute:
 
 ```powershell
-winget install --id GitHub.cli --exact
+irm https://raw.githubusercontent.com/sqjoao/OndaMusic/main/install.ps1 | iex
 ```
 
-Feche e reabra o terminal após instalar o GitHub CLI e faça login com a conta que tem acesso ao projeto:
-
-```powershell
-gh auth login
-```
-
-Depois, para instalar ou atualizar:
-
-```powershell
-gh api repos/sqjoao/OndaMusic/contents/install.ps1 -H "Accept: application/vnd.github.raw+json" | Out-String | iex
-```
-
-O instalador usa a autenticação do GitHub CLI para baixar a última release, verifica o SHA-256 silenciosamente e instala para o seu usuário, sem exigir administrador. Durante o processo normal, exibe apenas **Instalando última versão do Onda**. O instalador cria os atalhos do Onda. Não é necessário copiar tokens para scripts ou para o chat. O comando antigo com `irm` sem login não funciona para repositórios privados.
+O comando baixa o instalador da última versão publicada no [GitHub Releases](https://github.com/sqjoao/OndaMusic/releases/latest), verifica o SHA-256 e instala para o seu usuário, sem exigir administrador. Durante a instalação normal, o terminal exibe apenas **Instalando última versão do Onda**. O instalador cria os atalhos do Onda. Repita o mesmo comando para atualizar ou instalar em outro PC.
 
 A primeira versão precisa terminar de ser gerada pelo workflow **Release Windows**. Se não existir uma release, o script informa que o instalador ainda não está disponível. O instalador não tem assinatura comercial: o Windows pode mostrar o SmartScreen identificando um editor desconhecido. O script mantém a verificação de HTTPS e de checksum e não altera as políticas de segurança do computador.
 
@@ -43,7 +31,7 @@ Ao gerar o instalador, os arquivos são copiados para os recursos do aplicativo.
 Para adicionar/remover músicas embutidas, altere a pasta `musicas` e gere uma nova versão. Modificar a pasta do projeto não altera um aplicativo já instalado. O instalador cresce conforme o tamanho dos áudios. A pasta está vazia nesta versão: nenhum áudio de exemplo é distribuído.
 
 - Para gerar localmente, use `npm ci` e `npm run dist:win` no Windows. O instalador ficará em `dist`.
-- Para gerar pelo workflow do GitHub, os áudios precisam estar no commit da versão. Em um repositório privado, os arquivos ficam acessíveis às contas com permissão de acesso. Você também pode manter os áudios apenas no computador e gerar o instalador localmente.
+- Para gerar pelo workflow do GitHub, os áudios precisam estar no commit da versão. **Seu repositório é público: arquivos de música enviados para ele também ficam públicos.** Você pode manter os áudios apenas no computador e gerar o instalador localmente.
 - Use nomes como `Artista - Música.mp3` para separar título e artista. Tags ID3 ainda não são lidas.
 - Continua possível importar arquivos pelo botão **Adicionar músicas**; essas importações são locais e não entram nos instaladores.
 - Para remover uma faixa incluída no instalador, retire-a de `musicas` e gere outra versão. O menu da faixa informa essa diferença.
