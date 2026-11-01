@@ -4,6 +4,10 @@ Um player de música pessoal para desktop, feito com HTML, CSS e JavaScript puro
 
 ## Executar
 
+No **VS Code**, abra a pasta do projeto, instale a extensão **Live Server** e use **Open with Live Server** no arquivo `index.html`.
+
+Como alternativa, use Python:
+
 Na pasta do projeto, inicie um servidor de arquivos estáticos:
 
 ```sh
@@ -32,6 +36,16 @@ O navegador precisa permitir armazenamento local. MP3, WAV, OGG, M4A, AAC, FLAC 
 - Atalhos de teclado, controles acessíveis e integração com as teclas de mídia quando o navegador oferece suporte.
 - Restauração da biblioteca, playlists, volume, fila e posição da última faixa. A reprodução nunca recomeça automaticamente ao abrir a página.
 
+## Aparência
+
+Clique na **engrenagem** ao lado de **Adicionar músicas** para abrir as configurações:
+
+- **Tema:** claro, escuro ou seguindo o sistema. No modo Sistema, o app acompanha mudanças de aparência do dispositivo.
+- **Cor de destaque:** escolha uma das cores prontas, use o seletor de cor ou informe um código hexadecimal. A mudança aparece na hora.
+- **Restaurar padrão:** volta ao tema do sistema e à cor grafite, sem alterar músicas, playlists ou reprodução.
+
+A aparência é salva automaticamente neste navegador. O texto dos controles mantém contraste mesmo com cores muito claras ou escuras.
+
 ## Armazenamento e privacidade
 
 Os áudios são copiados para o **IndexedDB** do navegador. As preferências ficam no **localStorage**. Nada é enviado a um servidor; o servidor acima somente entrega os arquivos do app. Não são necessárias chaves, variáveis de ambiente ou conexão com serviços de música.
@@ -43,10 +57,11 @@ Esta é uma aplicação web. Não há aplicativo Android nem empacotamento nativ
 ## Estrutura
 
 ```text
-index.html   Interface, ícones locais e janelas de diálogo
-styles.css   Estilos e adaptação de layout
-app.js       Reprodução, importação e interações
-storage.js   Persistência e transações do IndexedDB
+index.html     Interface, ícones locais e janelas de diálogo
+styles.css     Estilos e adaptação de layout
+appearance.js  Temas, cores e preferências de aparência
+app.js         Reprodução, importação e interações
+storage.js     Persistência e transações do IndexedDB
 ```
 
 Nenhuma fonte, imagem, script ou dependência é carregada da internet.

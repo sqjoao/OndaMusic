@@ -3,16 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#f6f5f1" />
+    <meta name="theme-color" content="#fafafa" />
     <meta
       name="description"
-      content="Seu espaço para ouvir música. Um player pessoal, local e sem anúncios."
+      content="Player de música pessoal com biblioteca local, playlists e temas."
     />
-    <title>onda — sua música, no seu ritmo</title>
+    <title>onda — Player de música</title>
     <link
       rel="icon"
-      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%23ef754c'/%3E%3Cpath d='M14 34v-4m9 13V21m9 30V13m9 30V21m9 13v-4' stroke='%23fff' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%2352525b'/%3E%3Cpath d='M14 34v-4m9 13V21m9 30V13m9 30V21m9 13v-4' stroke='%23fff' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E"
     />
+    <script src="appearance.js"></script>
     <link rel="stylesheet" href="styles.css" />
     <script type="module" src="app.js"></script>
   </head>
@@ -42,9 +43,6 @@
         </symbol>
         <symbol id="i-plus" viewBox="0 0 24 24">
           <path d="M12 5v14M5 12h14" />
-        </symbol>
-        <symbol id="i-arrow" viewBox="0 0 24 24">
-          <path d="M5 12h14m-6-6 6 6-6 6" />
         </symbol>
         <symbol id="i-upload" viewBox="0 0 24 24">
           <path
@@ -113,17 +111,30 @@
           <rect x="5" y="10" width="14" height="11" rx="2" />
           <path d="M8 10V7a4 4 0 0 1 8 0v3m-4 5v2" />
         </symbol>
-        <symbol id="i-keyboard" viewBox="0 0 24 24">
-          <rect x="2" y="5" width="20" height="14" rx="2" />
-          <path
-            d="M6 9h.01M10 9h.01M14 9h.01M18 9h.01M6 13h.01M10 13h.01M14 13h.01M18 13h.01M8 16h8"
-          />
-        </symbol>
         <symbol id="i-trash" viewBox="0 0 24 24">
           <path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7" />
         </symbol>
         <symbol id="i-edit" viewBox="0 0 24 24">
           <path d="m16 3 5 5-12 12-6 1 1-6Zm-2 2 5 5" />
+        </symbol>
+        <symbol id="i-settings" viewBox="0 0 24 24">
+          <path
+            d="m9 3-1 3-3 1-2 3 2 2v2l-1 3 3 2 3-1 2 1 2 2 3-2v-3l2-2 3-1V9l-3-1-1-2V3h-4l-2 2-2-2Z"
+          />
+          <circle cx="12" cy="12" r="3" />
+        </symbol>
+        <symbol id="i-sun" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="4" />
+          <path
+            d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"
+          />
+        </symbol>
+        <symbol id="i-moon" viewBox="0 0 24 24">
+          <path d="M20.5 13A9 9 0 0 1 11 3.5 9 9 0 1 0 20.5 13Z" />
+        </symbol>
+        <symbol id="i-monitor" viewBox="0 0 24 24">
+          <rect x="3" y="3" width="18" height="13" rx="2" />
+          <path d="M8 21h8m-4-5v5" />
         </symbol>
       </defs>
     </svg>
@@ -131,140 +142,120 @@
     <a class="skip-link" href="#main">Ir para a biblioteca</a>
 
     <aside class="sidebar" aria-label="Navegação principal">
-      <a class="brand" href="#library" aria-label="onda — início">
-        <span class="brand-mark"
-          ><svg class="icon"><use href="#i-wave" /></svg></span
-        >onda<span class="brand-dot">.</span>
-      </a>
-      <div class="sidebar-section-label"></div>
-      <nav class="main-nav">
+      <a class="brand" href="#library" aria-label="onda — início">onda</a>
+      <nav class="main-nav" aria-label="Biblioteca">
         <button class="nav-item active" data-view="library" aria-current="page">
-          <svg class="icon"><use href="#i-library" /></svg
+          <svg class="icon" aria-hidden="true"><use href="#i-library" /></svg
           ><span>Todas as músicas</span
           ><span class="nav-count" id="library-count">0</span>
         </button>
         <button class="nav-item" data-view="favorites">
-          <svg class="icon"><use href="#i-heart" /></svg><span>Favoritas</span>
+          <svg class="icon" aria-hidden="true"><use href="#i-heart" /></svg
+          ><span>Favoritas</span>
         </button>
         <button class="nav-item" data-view="recent">
-          <svg class="icon"><use href="#i-clock" /></svg
-          ><span>Adicionadas agora</span>
+          <svg class="icon" aria-hidden="true"><use href="#i-clock" /></svg
+          ><span>Recentes</span>
         </button>
       </nav>
       <div class="sidebar-section-heading">
-        <span class="sidebar-section-label">SUAS PLAYLISTS</span
+        <span>Playlists</span
         ><button
           class="icon-button"
           id="new-playlist"
           title="Criar playlist"
           aria-label="Criar playlist"
         >
-          <svg class="icon"><use href="#i-plus" /></svg>
+          <svg class="icon" aria-hidden="true"><use href="#i-plus" /></svg>
         </button>
       </div>
       <div class="playlist-nav" id="playlist-nav"></div>
-      <button class="create-playlist" id="create-playlist">
-        <span class="create-icon"
-          ><svg class="icon"><use href="#i-plus" /></svg></span
-        >Criar uma playlist
-      </button>
-      <div class="sidebar-note">
     </aside>
 
     <main class="main" id="main">
-      <header class="topbar">
-        <div class="breadcrumb">
-          Seu espaço <span>/</span>
-          <strong id="breadcrumb-view">Biblioteca</strong>
-        </div>
-        <div class="topbar-actions">
-          <div
-            class="profile-mark"
-            title="Seu espaço pessoal"
-            aria-label="Seu espaço pessoal"
-          >
-            o<span>•</span>
-          </div>
-        </div>
-      </header>
-
       <div class="page-content">
-        <section class="hero" aria-labelledby="hero-title">
-          <div class="hero-copy">
-            <button class="button button-accent" id="hero-import">
-              <svg class="icon"><use href="#i-plus" /></svg>Adicionar
-              músicas<svg class="icon arrow-icon"><use href="#i-arrow" /></svg>
-            </button>
-          </div>
-        </section>
-
         <section class="collection" aria-labelledby="view-title">
-          <div class="collection-heading">
+          <header class="collection-heading">
             <div>
-              <div class="section-eyebrow" id="view-eyebrow">
-                SEUS SONS, TODOS AQUI
-              </div>
-              <h2 id="view-title">
-                Biblioteca <span class="count-pill" id="track-count">0</span>
-              </h2>
+              <h1 id="view-title">Biblioteca</h1>
+              <p class="collection-summary" id="collection-summary">
+                0 músicas
+              </p>
             </div>
             <div class="collection-actions">
               <button
-                class="icon-button playlist-edit"
+                class="icon-button"
                 id="edit-playlist"
                 title="Editar playlist"
                 aria-label="Editar playlist"
                 hidden
               >
-                <svg class="icon"><use href="#i-edit" /></svg></button
-              ><button class="button button-light" id="open-import">
-                <svg class="icon"><use href="#i-upload" /></svg>Importar músicas
+                <svg class="icon" aria-hidden="true">
+                  <use href="#i-edit" />
+                </svg>
               </button>
-            </div>
-          </div>
-
-          <div class="library-toolbar">
-            <div class="play-actions">
-              <button class="button button-dark" id="play-all" disabled>
-                <svg class="icon"><use href="#i-play" /></svg>Reproduzir</button
-              ><button
-                class="icon-button"
-                id="shuffle-all"
-                title="Reproduzir em ordem aleatória"
-                aria-label="Reproduzir em ordem aleatória"
-                disabled
+              <button class="button button-accent" id="open-import">
+                <svg class="icon" aria-hidden="true"><use href="#i-plus" /></svg
+                >Adicionar músicas
+              </button>
+              <button
+                class="icon-button settings-button"
+                id="open-settings"
+                title="Configurações"
+                aria-label="Configurações"
+                aria-haspopup="dialog"
               >
-                <svg class="icon"><use href="#i-shuffle" /></svg>
+                <svg class="icon" aria-hidden="true">
+                  <use href="#i-settings" />
+                </svg>
               </button>
             </div>
+          </header>
+          <div class="library-toolbar">
+            <label class="search-field"
+              ><svg class="icon" aria-hidden="true">
+                <use href="#i-search" /></svg
+              ><input
+                type="search"
+                id="search"
+                placeholder="Buscar música ou artista"
+                aria-label="Buscar músicas por nome ou artista"
+                autocomplete="off"
+              /><kbd>/</kbd></label
+            >
             <div class="filter-actions">
-              <label class="search-field"
-                ><svg class="icon"><use href="#i-search" /></svg
-                ><input
-                  type="search"
-                  id="search"
-                  placeholder="Buscar uma música..."
-                  aria-label="Buscar músicas por nome ou artista"
-                  autocomplete="off"
-                /><kbd>/</kbd></label
-              ><select id="sort" aria-label="Ordenar músicas">
+              <select id="sort" aria-label="Ordenar músicas">
                 <option value="recent">Mais recentes</option>
                 <option value="title">Nome da música</option>
                 <option value="artist">Artista</option>
               </select>
+              <div class="play-actions">
+                <button class="button button-light" id="play-all" disabled>
+                  <svg class="icon" aria-hidden="true">
+                    <use href="#i-play" /></svg
+                  >Reproduzir</button
+                ><button
+                  class="icon-button"
+                  id="shuffle-all"
+                  title="Reproduzir em ordem aleatória"
+                  aria-label="Reproduzir em ordem aleatória"
+                  disabled
+                >
+                  <svg class="icon" aria-hidden="true">
+                    <use href="#i-shuffle" />
+                  </svg>
+                </button>
+              </div>
             </div>
           </div>
-
           <div id="storage-error" class="storage-error" role="alert" hidden>
-            O armazenamento local não está disponível. Use uma janela normal do
-            navegador e permita o armazenamento para importar músicas.
+            O armazenamento local não está disponível. Permita o armazenamento
+            no navegador para importar músicas.
           </div>
           <div class="library-panel" id="library-panel">
             <div class="track-table-heading" aria-hidden="true">
-              <span>#</span><span>MÚSICA / ARTISTA</span><span>FORMATO</span
-              ><span
-                ><svg class="icon"><use href="#i-clock" /></svg></span
-              ><span></span>
+              <span>#</span><span>Música</span><span>Formato</span
+              ><span>Duração</span><span></span>
             </div>
             <div
               id="track-list"
@@ -273,32 +264,18 @@
               aria-label="Músicas"
             ></div>
             <div class="empty-state" id="empty-state">
-              <div class="empty-illustration" aria-hidden="true">
-                <span class="empty-orbit"></span>
-                <div class="empty-record"><span></span></div>
-                <div class="empty-note">
-                  <svg class="icon"><use href="#i-music" /></svg>
-                </div>
-                <span class="spark spark-one">+</span
-                ><span class="spark spark-two">✦</span>
-              </div>
-              <h3 id="empty-title">Toda coleção tem uma primeira música.</h3>
+              <svg class="empty-icon icon" aria-hidden="true">
+                <use href="#i-music" />
+              </svg>
+              <h2 id="empty-title">Nenhuma música</h2>
               <p id="empty-description">
-                Arraste seus arquivos para cá e deixe o resto com a gente.<br />Suas
-                músicas ficam salvas só neste navegador.
+                Arraste arquivos de áudio ou adicione uma pasta.
               </p>
-              <button class="button button-accent" id="empty-import">
-                <svg class="icon"><use href="#i-plus" /></svg>Escolher músicas</button
-              ><span class="format-note" id="empty-formats"
-                >MP3, WAV, OGG, M4A, FLAC e mais*</span
-              >
+              <button class="button button-light" id="empty-import">
+                <svg class="icon" aria-hidden="true"><use href="#i-plus" /></svg
+                >Adicionar músicas
+              </button>
             </div>
-          </div>
-          <div class="library-footnote">
-            <span
-              ><svg class="icon"><use href="#i-lock" /></svg>Seus arquivos não
-              saem do seu navegador.</span
-            ><span id="library-total">Sua trilha sonora começa aqui.</span>
           </div>
         </section>
       </div>
@@ -310,8 +287,8 @@
           <svg class="icon"><use href="#i-music" /></svg>
         </div>
         <div class="now-playing-copy">
-          <strong id="now-title">Pronto para o seu primeiro play?</strong
-          ><span id="now-artist">Adicione uma música para começar</span>
+          <strong id="now-title">Nenhuma música selecionada</strong
+          ><span id="now-artist">—</span>
         </div>
         <button
           class="icon-button favorite-button"
@@ -416,8 +393,8 @@
     <div class="drop-overlay" id="drop-overlay" hidden>
       <div>
         <svg class="icon"><use href="#i-upload" /></svg>
-        <h2>Solte. Dê play. Sinta.</h2>
-        <p>Adicione suas músicas à coleção.</p>
+        <h2>Solte os arquivos para importar</h2>
+        <p>Músicas e pastas de áudio</p>
       </div>
     </div>
     <input
@@ -440,10 +417,10 @@
         title="Fechar"
         aria-label="Fechar"
       >
-        <svg class="icon"><use href="#i-close" /></svg></button
-      ><span class="section-eyebrow">MAIS MÚSICA NA SUA VIDA</span>
-      <h2 id="import-title">Traga seus sons.</h2>
-      <p>Suas músicas favoritas merecem um lugar por aqui.</p>
+        <svg class="icon"><use href="#i-close" /></svg>
+      </button>
+      <h2 id="import-title">Adicionar músicas</h2>
+      <p>Escolha arquivos de áudio ou uma pasta do computador.</p>
       <div class="import-dropzone" id="import-dropzone">
         <div class="upload-icon">
           <svg class="icon"><use href="#i-upload" /></svg>
@@ -488,13 +465,7 @@
       >
         <svg class="icon"><use href="#i-close" /></svg>
       </button>
-      <div class="dialog-icon">
-        <svg class="icon"><use href="#i-music" /></svg>
-      </div>
-      <h2 id="playlist-dialog-title">Uma playlist, um momento.</h2>
-      <p id="playlist-dialog-description">
-        Dê um nome para a sua próxima trilha sonora.
-      </p>
+      <h2 id="playlist-dialog-title">Nova playlist</h2>
       <form id="playlist-form">
         <label class="form-label" for="playlist-name">Nome da playlist</label
         ><input
@@ -535,8 +506,8 @@
         title="Fechar"
         aria-label="Fechar"
       >
-        <svg class="icon"><use href="#i-close" /></svg></button
-      ><span class="section-eyebrow">CADA MÚSICA NO SEU LUGAR</span>
+        <svg class="icon"><use href="#i-close" /></svg>
+      </button>
       <h2 id="track-dialog-title">Organizar música</h2>
       <p id="track-dialog-artist"></p>
       <div id="add-to-playlist-controls">
@@ -581,12 +552,140 @@
         title="Fechar"
         aria-label="Fechar"
       >
-        <svg class="icon"><use href="#i-close" /></svg></button
-      ><span class="section-eyebrow">DEIXA O SOM SEGUIR</span>
-      <h2 id="queue-title">Na sequência</h2>
-      <p id="queue-summary">Sua fila de reprodução.</p>
+        <svg class="icon"><use href="#i-close" /></svg>
+      </button>
+      <h2 id="queue-title">Fila de reprodução</h2>
+      <p id="queue-summary">Fila vazia</p>
       <div id="queue-list" class="queue-list"></div>
-    </dialog> 
+    </dialog>
+    <dialog
+      id="settings-dialog"
+      class="modal settings-modal"
+      aria-labelledby="settings-title"
+    >
+      <button
+        class="icon-button modal-close"
+        data-close
+        title="Fechar"
+        aria-label="Fechar"
+      >
+        <svg class="icon" aria-hidden="true"><use href="#i-close" /></svg>
+      </button>
+      <h2 id="settings-title">Configurações</h2>
+      <fieldset class="appearance-fieldset">
+        <legend>Tema</legend>
+        <div class="theme-options">
+          <label class="theme-option"
+            ><input type="radio" name="theme" value="light" /><svg
+              class="icon"
+              aria-hidden="true"
+            >
+              <use href="#i-sun" /></svg
+            ><span>Claro</span></label
+          >
+          <label class="theme-option"
+            ><input type="radio" name="theme" value="dark" /><svg
+              class="icon"
+              aria-hidden="true"
+            >
+              <use href="#i-moon" /></svg
+            ><span>Escuro</span></label
+          >
+          <label class="theme-option"
+            ><input type="radio" name="theme" value="system" checked /><svg
+              class="icon"
+              aria-hidden="true"
+            >
+              <use href="#i-monitor" /></svg
+            ><span>Sistema</span></label
+          >
+        </div>
+      </fieldset>
+      <fieldset class="appearance-fieldset">
+        <legend>Cor de destaque</legend>
+        <div class="color-presets" role="group" aria-label="Cores de destaque">
+          <button
+            class="color-swatch"
+            data-accent="#52525b"
+            style="--swatch: #52525b"
+            aria-label="Grafite"
+            aria-pressed="true"
+            title="Grafite"
+          ></button>
+          <button
+            class="color-swatch"
+            data-accent="#4666e5"
+            style="--swatch: #4666e5"
+            aria-label="Azul"
+            aria-pressed="false"
+            title="Azul"
+          ></button>
+          <button
+            class="color-swatch"
+            data-accent="#32916f"
+            style="--swatch: #32916f"
+            aria-label="Verde"
+            aria-pressed="false"
+            title="Verde"
+          ></button>
+          <button
+            class="color-swatch"
+            data-accent="#d17a40"
+            style="--swatch: #d17a40"
+            aria-label="Laranja"
+            aria-pressed="false"
+            title="Laranja"
+          ></button>
+          <button
+            class="color-swatch"
+            data-accent="#bf5e85"
+            style="--swatch: #bf5e85"
+            aria-label="Rosa"
+            aria-pressed="false"
+            title="Rosa"
+          ></button>
+          <button
+            class="color-swatch"
+            data-accent="#8b5cdb"
+            style="--swatch: #8b5cdb"
+            aria-label="Violeta"
+            aria-pressed="false"
+            title="Violeta"
+          ></button>
+        </div>
+        <div class="custom-color">
+          <label class="color-picker-label" for="accent-color"
+            ><input
+              type="color"
+              id="accent-color"
+              value="#52525b"
+              aria-label="Escolher cor personalizada"
+            /><span>Personalizada</span></label
+          ><input
+            class="text-input hex-input"
+            id="accent-hex"
+            aria-label="Código hexadecimal da cor"
+            value="#52525b"
+            maxlength="7"
+            spellcheck="false"
+            autocomplete="off"
+            aria-describedby="color-error"
+          />
+        </div>
+        <p id="color-error" class="field-error" hidden>
+          Use um código hexadecimal, como #4666e5.
+        </p>
+      </fieldset>
+      <div class="settings-footer">
+        <button class="text-button" id="reset-appearance">
+          Restaurar padrão
+        </button>
+        <p id="appearance-status" role="status">
+          Salvo automaticamente neste navegador.
+        </p>
+      </div>
+    </dialog>
+
     <div
       class="toast-region"
       id="toast-region"

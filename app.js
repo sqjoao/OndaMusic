@@ -14,14 +14,6 @@ const collator = new Intl.Collator("pt-BR", {
 });
 const PREFERENCES_KEY = "onda:preferences:v1";
 const AUDIO_EXTENSION = /\.(mp3|wav|ogg|oga|m4a|aac|flac|opus|aif|aiff|webm)$/i;
-const covers = [
-  ["#e9bd9c", "#82523e"],
-  ["#bfcdb2", "#516447"],
-  ["#c9c8dc", "#696382"],
-  ["#dcbdad", "#8b5d4f"],
-  ["#b6cecc", "#4c7371"],
-  ["#e0d29f", "#81733e"],
-];
 const state = {
   tracks: [],
   playlists: [],
@@ -96,13 +88,6 @@ function getTrack(id = state.currentId) {
 
 function currentPlaylist() {
   return state.playlists.find((playlist) => playlist.id === state.view);
-}
-
-function coverStyle(seed) {
-  let hash = 0;
-  for (const char of seed) hash = ((hash << 5) - hash + char.charCodeAt(0)) | 0;
-  const [background, foreground] = covers[Math.abs(hash) % covers.length];
-  return `--cover-bg:${background};--cover-ink:${foreground}`;
 }
 
 function toast(message, error = false) {
@@ -181,7 +166,7 @@ function viewTracks(includeSearch = true) {
     : [...state.tracks];
   if (state.view === "favorites")
     tracks = tracks.filter((track) => track.favorite);
-  // "Adicionadas agora" is the full collection ordered by import date.
+  // "Recentes" lists the collection in import order by default.
   if (state.sort === "title")
     tracks.sort((a, b) => collator.compare(a.title, b.title));
   else if (state.sort === "artist")
@@ -213,15 +198,16 @@ function renderNavigation() {
     if (active) button.setAttribute("aria-current", "page");
     else button.removeAttribute("aria-current");
   }
-  $("#playlist-nav").innerHTML = state.playlists
-    .map(
-      (playlist) => `
+  $("#playlist-nav").innerHTML =
+    state.playlists
+      .map(
+        (playlist) => `
     <button class="nav-item${state.view === playlist.id ? " active" : ""}" data-playlist-view="${playlist.id}"${state.view === playlist.id ? ' aria-current="page"' : ""} title="${escapeHTML(playlist.name)}">
-      <span class="playlist-color" style="${coverStyle(playlist.id)}">${icon("music")}</span>
+      <span class="playlist-icon">${icon("music")}</span>
       <span>${escapeHTML(playlist.name)}</span>
     </button>`,
-    )
-    .join("");
+      )
+      .join("") || '<p class="playlist-empty">Nenhuma playlist</p>';
 }
 
 function renderLibrary() {
@@ -229,34 +215,18 @@ function renderLibrary() {
   const titles = {
     library: "Biblioteca",
     favorites: "Favoritas",
-    recent: "Adicionadas agora",
+    recent: "Recentes",
   };
   const title = playlist?.name || titles[state.view] || "Biblioteca";
   const tracks = viewTracks();
   const allViewTracks = viewTracks(false);
-  $("#view-title").innerHTML =
-    `${escapeHTML(title)} <span class="count-pill">${tracks.length}</span>`;
-  $("#breadcrumb-view").textContent = playlist ? "Playlists" : title;
-  $("#view-eyebrow").textContent = playlist
-    ? "UMA TRILHA SONORA SÓ SUA"
-    : state.view === "favorites"
-      ? "PARA OUVIR DE NOVO. E DE NOVO."
-      : state.view === "recent"
-        ? "OS ÚLTIMOS SONS QUE CHEGARAM"
-        : "SEUS SONS, TODOS AQUI";
+  $("#view-title").textContent = title;
   $("#collection-summary").textContent = allViewTracks.length
-    ? `${countLabel(allViewTracks.length)} · ${totalTime(allViewTracks)} de boa companhia`
-    : playlist
-      ? "Toda boa playlist começa com uma escolha."
-      : state.view === "favorites"
-        ? "Guarde aqui as músicas que ficam com você."
-        : "O próximo play começa com você.";
+    ? `${countLabel(allViewTracks.length)} · ${totalTime(allViewTracks)}`
+    : countLabel(0);
   $("#edit-playlist").hidden = !playlist;
   $("#play-all").disabled = !tracks.length;
   $("#shuffle-all").disabled = !tracks.length;
-  $("#library-total").textContent = state.tracks.length
-    ? `${countLabel(state.tracks.length)} na sua coleção`
-    : "Sua trilha sonora começa aqui.";
 
   $("#track-list").innerHTML = tracks
     .map((track, index) => {
@@ -265,7 +235,7 @@ function renderLibrary() {
       return `<div class="track-row${isCurrent ? " is-current" : ""}" data-track="${track.id}">
       <div class="row-number"><span>${String(index + 1).padStart(2, "0")}</span><button class="icon-button" data-action="play" aria-label="${isPlaying ? "Pausar" : "Reproduzir"} ${escapeHTML(track.title)}">${icon(isPlaying ? "pause" : "play")}</button></div>
       <button class="track-details" data-action="play" aria-label="${isPlaying ? "Pausar" : "Reproduzir"} ${escapeHTML(track.title)} de ${escapeHTML(track.artist)}">
-        <span class="track-art" style="${coverStyle(track.title)}">${icon("music")}</span><span class="track-copy"><strong title="${escapeHTML(track.title)}">${escapeHTML(track.title)}</strong><span>${escapeHTML(track.artist)}</span></span>
+        <span class="track-copy"><strong title="${escapeHTML(track.title)}">${escapeHTML(track.title)}</strong><span>${escapeHTML(track.artist)}</span></span>
       </button><span class="track-format">${escapeHTML(track.format)}</span><span class="track-duration">${time(track.duration)}</span>
       <div class="track-actions"><button class="icon-button favorite-button${track.favorite ? " is-favorite" : ""}" data-action="favorite" aria-label="${track.favorite ? "Remover" : "Adicionar"} ${escapeHTML(track.title)} ${track.favorite ? "das" : "às"} favoritas" aria-pressed="${track.favorite}" title="${track.favorite ? "Remover das favoritas" : "Adicionar às favoritas"}">${icon("heart")}</button><button class="icon-button" data-action="organize" aria-label="Organizar ${escapeHTML(track.title)}" title="Organizar música">${icon("more")}</button></div>
     </div>`;
@@ -275,32 +245,28 @@ function renderLibrary() {
   $("#empty-state").hidden = tracks.length > 0;
   const filtered = Boolean(state.search.trim()) && !tracks.length;
   $("#empty-title").textContent = filtered
-    ? "Esse som ainda não está por aqui."
+    ? "Nenhum resultado"
     : playlist
-      ? "Um novo momento. Uma nova playlist."
+      ? "Playlist vazia"
       : state.view === "favorites"
-        ? "Tem música que merece um coração."
-        : "Toda coleção tem uma primeira música.";
+        ? "Nenhuma favorita"
+        : "Nenhuma música";
   $("#empty-description").textContent = filtered
     ? "Tente outro nome de música ou artista."
     : playlist
-      ? "Importe suas músicas ou use o menu de uma faixa da biblioteca para adicionar a esta playlist."
+      ? "Adicione músicas pelo menu de uma faixa ou importe novos arquivos."
       : state.view === "favorites"
-        ? "Toque no coração ao lado de uma faixa para guardar suas favoritas aqui."
-        : "Arraste seus arquivos para cá e deixe o resto com a gente. Suas músicas ficam salvas só neste navegador.";
+        ? "Marque o coração ao lado de uma música para adicioná-la aqui."
+        : "Arraste arquivos de áudio ou adicione uma pasta.";
   $("#empty-import").hidden = filtered || state.view === "favorites";
-  $("#empty-formats").hidden = filtered || state.view === "favorites";
   renderNavigation();
 }
 
 function renderPlayer() {
   const track = getTrack();
-  $("#now-title").textContent =
-    track?.title || "Pronto para o seu primeiro play?";
+  $("#now-title").textContent = track?.title || "Nenhuma música selecionada";
   $("#now-title").title = track?.title || "";
-  $("#now-artist").textContent =
-    track?.artist || "Adicione uma música para começar";
-  $("#player-art").style.cssText = track ? coverStyle(track.title) : "";
+  $("#now-artist").textContent = track?.artist || "—";
   $("#play-pause").disabled = !track;
   $("#previous").disabled = !track;
   $("#next").disabled = !track;
@@ -383,17 +349,17 @@ function updateTimeline() {
 
 function renderQueue() {
   $("#queue-summary").textContent = state.queue.length
-    ? `${countLabel(state.queue.length)} para acompanhar seu momento.`
-    : "Escolha uma música para começar.";
+    ? countLabel(state.queue.length)
+    : "Fila vazia";
   $("#queue-list").innerHTML = state.queue.length
     ? state.queue
         .map((id, index) => {
           const track = getTrack(id);
           if (!track) return "";
-          return `<button class="queue-row${id === state.currentId ? " is-current" : ""}" data-queue-id="${id}" aria-label="Reproduzir ${escapeHTML(track.title)}"${id === state.currentId ? ' aria-current="true"' : ""}><span class="queue-index">${id === state.currentId ? icon("wave") : index + 1}</span><span class="track-art" style="${coverStyle(track.title)}">${icon("music")}</span><span class="track-copy"><strong>${escapeHTML(track.title)}</strong><span>${escapeHTML(track.artist)}</span></span><span class="track-duration">${time(track.duration)}</span></button>`;
+          return `<button class="queue-row${id === state.currentId ? " is-current" : ""}" data-queue-id="${id}" aria-label="Reproduzir ${escapeHTML(track.title)}"${id === state.currentId ? ' aria-current="true"' : ""}><span class="queue-index">${id === state.currentId ? icon("wave") : index + 1}</span><span class="track-copy"><strong>${escapeHTML(track.title)}</strong><span>${escapeHTML(track.artist)}</span></span><span class="track-duration">${time(track.duration)}</span></button>`;
         })
         .join("")
-    : '<p class="queue-empty">A fila ainda está em silêncio. Dê play em uma música da sua biblioteca.</p>';
+    : '<p class="queue-empty">Reproduza uma música para criar a fila.</p>';
 }
 
 function setView(view) {
@@ -553,11 +519,8 @@ function openPlaylistDialog(id = null, trackId = null) {
   pendingPlaylistTrackId = trackId;
   const playlist = state.playlists.find((item) => item.id === id);
   $("#playlist-dialog-title").textContent = playlist
-    ? "Um novo nome, o mesmo ritmo."
-    : "Uma playlist, um momento.";
-  $("#playlist-dialog-description").textContent = playlist
-    ? "Deixe esta playlist com a sua cara."
-    : "Dê um nome para a sua próxima trilha sonora.";
+    ? "Editar playlist"
+    : "Nova playlist";
   $("#playlist-name").value = playlist?.name || "";
   $("#playlist-name").setCustomValidity("");
   $("#delete-playlist").hidden = !playlist;
@@ -592,11 +555,7 @@ async function submitPlaylist(event) {
     else state.playlists.push(playlist);
     $("#playlist-dialog").close();
     setView(playlist.id);
-    toast(
-      existing
-        ? "Playlist atualizada."
-        : "Playlist criada. Seu novo momento já tem nome.",
-    );
+    toast(existing ? "Playlist atualizada." : "Playlist criada.");
   } catch (error) {
     storageError(error);
   } finally {
@@ -943,7 +902,7 @@ function bindEvents() {
     const button = event.target.closest("[data-playlist-view]");
     if (button) setView(button.dataset.playlistView);
   });
-  for (const id of ["#hero-import", "#open-import", "#empty-import"])
+  for (const id of ["#open-import", "#empty-import"])
     $(id).addEventListener("click", () => showDialog("#import-dialog"));
   $("#choose-files").addEventListener("click", () => $("#file-input").click());
   $("#choose-folder").addEventListener("click", () =>
@@ -957,8 +916,7 @@ function bindEvents() {
     "change",
     (event) => void importFiles(event.target.files),
   );
-  for (const id of ["#new-playlist", "#create-playlist"])
-    $(id).addEventListener("click", () => openPlaylistDialog());
+  $("#new-playlist").addEventListener("click", () => openPlaylistDialog());
   $("#edit-playlist").addEventListener("click", () =>
     openPlaylistDialog(currentPlaylist()?.id),
   );
@@ -1036,9 +994,6 @@ function bindEvents() {
     renderPlayer();
     savePreferences();
   });
-  $("#keyboard-help").addEventListener("click", () =>
-    showDialog("#help-dialog"),
-  );
   $("#open-queue").addEventListener("click", () => {
     renderQueue();
     showDialog("#queue-dialog");
