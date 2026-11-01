@@ -5,11 +5,18 @@ const {
   net,
   session,
   shell,
+  dialog,
 } = require("electron");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 const fs = require("node:fs");
-const { readdir, stat } = require("node:fs/promises");
+const {
+  readdir,
+  stat,
+  readFile,
+  writeFile,
+  mkdir,
+} = require("node:fs/promises");
 const { createHash } = require("node:crypto");
 const { Readable } = require("node:stream");
 
@@ -26,20 +33,104 @@ const audioTypes = {
   ".aiff": "audio/aiff",
   ".webm": "audio/webm",
 };
-const bundledFiles = new Map();
-const catalog = [];
+let libraryFiles = new Map();
+let catalog = [];
+let selectedFolder = null;
+let libraryRevision = 0;
+let libraryError = null;
+let libraryReady = Promise.resolve(true);
+let scanNumber = 0;
+let folderWatcher;
+let refreshTimer;
+let choosingFolder = false;
 
-async function scanMusic() {
+function libraryState() {
+  return {
+    folder: selectedFolder,
+    revision: libraryRevision,
+    error: libraryError,
+  };
+}
+function librarySettingsPath() {
+  return path.join(app.getPath("userData"), "music-folder.json");
+}
+async function waitForLibrary() {
+  let pending;
+  do {
+    pending = libraryReady;
+    await pending;
+  } while (pending !== libraryReady);
+}
+function refreshLibrary() {
+  const number = ++scanNumber;
+  libraryReady = scanMusic(selectedFolder).then(
+    (result) => {
+      if (number !== scanNumber) return false;
+      libraryFiles = result.files;
+      catalog = result.tracks;
+      libraryError = null;
+      libraryRevision++;
+      return true;
+    },
+    () => {
+      if (number !== scanNumber) return false;
+      libraryFiles = new Map();
+      catalog = [];
+      libraryError =
+        "Não foi possível ler a pasta. Verifique se ela está disponível ou escolha outra.";
+      libraryRevision++;
+      return false;
+    },
+  );
+  return libraryReady;
+}
+function watchFolder() {
+  folderWatcher?.close();
+  clearTimeout(refreshTimer);
+  if (!selectedFolder) return;
+  try {
+    const watcher = fs.watch(
+      selectedFolder,
+      { recursive: true },
+      (eventType) => {
+        // Add/remove/rename events update the list. Continuous download writes
+        // must not repeatedly rescan the entire collection.
+        if (eventType !== "rename") return;
+        clearTimeout(refreshTimer);
+        refreshTimer = setTimeout(() => {
+          void refreshLibrary();
+        }, 1000);
+      },
+    );
+    folderWatcher = watcher;
+    watcher.on("error", () => watcher.close());
+  } catch {
+    /* Manual refresh remains available on network drives. */
+  }
+}
+async function initializeLibrary() {
+  try {
+    const saved = JSON.parse(await readFile(librarySettingsPath(), "utf8"));
+    if (typeof saved.folder === "string" && path.isAbsolute(saved.folder))
+      selectedFolder = saved.folder;
+  } catch {
+    /* First launch has no selected folder. */
+  }
+  await refreshLibrary();
+  watchFolder();
+}
+
+async function scanMusic(root) {
+  const nextCatalog = [];
+  const nextFiles = new Map();
+  if (!root) return { tracks: nextCatalog, files: nextFiles };
   let visited = 0;
-  const root = app.isPackaged
-    ? path.join(process.resourcesPath, "musicas")
-    : path.join(app.getAppPath(), "musicas");
   async function walk(directory) {
     let entries;
     try {
       entries = await readdir(directory, { withFileTypes: true });
     } catch (error) {
-      if (error.code === "ENOENT") return;
+      if (error.code === "ENOENT" && directory !== root) return;
       throw error;
     }
     entries.sort((a, b) => a.name.localeCompare(b.name));
@@ -54,29 +145,32 @@ async function scanMusic() {
       const extension = path.extname(entry.name).toLowerCase();
       if (!entry.isFile() || !audioTypes[extension]) continue;
       const relative = path.relative(root, file).split(path.sep).join("/");
-      const id = createHash("sha256").update(relative).digest("hex");
+      const id = createHash("sha256")
+        .update(root + "\0" + relative)
+        .digest("hex");
       const urlPath = "/music/" + id;
       const parts = path
         .basename(entry.name, path.extname(entry.name))
         .replace(/_/g, " ")
         .split(/\s+[-–—]\s+/);
-      const artist = parts.length > 1 ? parts.shift() : "Música incluída";
-      catalog.push({
-        id: "bundle:" + id,
+      const artist = parts.length > 1 ? parts.shift() : "Arquivo local";
+      nextCatalog.push({
+        id: "folder:" + id,
         name: entry.name,
         title: parts.join(" - "),
         artist,
         format: extension.slice(1),
         duration: 0,
-        embedded: true,
+        external: true,
         url: "onda://app" + urlPath,
         importedAt: 0,
         favorite: false,
       });
-      bundledFiles.set(urlPath, { file, type: audioTypes[extension] });
+      nextFiles.set(urlPath, { file, type: audioTypes[extension] });
     }
   }
   await walk(root);
+  return { tracks: nextCatalog, files: nextFiles };
 }
 
 async function serveMusic(request, item) {
@@ -113,7 +207,9 @@ async function serveMusic(request, item) {
   if (request.method === "HEAD" || !size)
     return new Response(null, { status: range ? 206 : 200, headers });
   return new Response(
-    Readable.toWeb(fs.createReadStream(item.file, { start, end })),
+    Readable.toWeb(fs.createReadStream(item.file, { start, end }), {
+      strategy: { highWaterMark: 64 * 1024, size: (chunk) => chunk.byteLength },
+    }),
     { status: range ? 206 : 200, headers },
   );
 }
@@ -125,6 +221,7 @@ protocol.registerSchemesAsPrivileged([
       standard: true,
       secure: true,
       supportFetchAPI: true,
+      corsEnabled: true,
       stream: true,
     },
   },
@@ -182,33 +279,75 @@ else {
     }
   });
   app.whenReady().then(async () => {
-    // Opening the window must not wait for every music directory to be scanned.
-    const libraryReady = scanMusic().then(
-      () => true,
-      (error) => {
-        console.error(
-          "Falha ao ler músicas incluídas:",
-          error.code || error.name,
-        );
-        return false;
-      },
-    );
+    // Folder discovery must not delay the first window.
+    libraryReady = initializeLibrary();
     protocol.handle("onda", async (request) => {
       const url = new URL(request.url);
-      if (url.hostname !== "app" || !["GET", "HEAD"].includes(request.method))
+      if (url.hostname !== "app")
         return new Response("Not found", { status: 404 });
-      if (url.pathname === "/library.json") {
-        if (!(await libraryReady))
-          return new Response("Library unavailable", { status: 503 });
-        return new Response(
-          request.method === "HEAD" ? null : JSON.stringify(catalog),
-          { headers: { "Content-Type": "application/json; charset=utf-8" } },
-        );
+      if (request.method === "POST") {
+        const origin = request.headers.get("origin");
+        // Origin may be omitted for same-origin custom-protocol requests.
+        // The non-safelisted header requires CORS preflight from other origins,
+        // which this local protocol never approves.
+        if (
+          request.headers.get("x-onda-library") !== "1" ||
+          (origin && origin !== "onda://app")
+        )
+          return new Response("Forbidden", { status: 403 });
+        if (url.pathname === "/choose-library") {
+          if (choosingFolder)
+            return new Response("Folder dialog already open", { status: 409 });
+          choosingFolder = true;
+          try {
+            const result = await dialog.showOpenDialog(window, {
+              title: "Escolher pasta de músicas",
+              properties: ["openDirectory"],
+            });
+            if (result.canceled || !result.filePaths[0])
+              return Response.json({ cancelled: true });
+            await mkdir(app.getPath("userData"), { recursive: true });
+            await writeFile(
+              librarySettingsPath(),
+              JSON.stringify({ folder: result.filePaths[0] }),
+              "utf8",
+            );
+            folderWatcher?.close();
+            clearTimeout(refreshTimer);
+            selectedFolder = result.filePaths[0];
+            await refreshLibrary();
+            await waitForLibrary();
+            watchFolder();
+          } catch {
+            return Response.json(
+              { error: "Não foi possível salvar a pasta escolhida." },
+              { status: 500 },
+            );
+          } finally {
+            choosingFolder = false;
+          }
+          return Response.json({ ...libraryState(), tracks: catalog });
+        }
+        if (url.pathname === "/refresh-library") {
+          await refreshLibrary();
+          await waitForLibrary();
+          watchFolder();
+          return Response.json({ ...libraryState(), tracks: catalog });
+        }
+        return new Response("Not found", { status: 404 });
       }
-      if (url.pathname.startsWith("/music/")) await libraryReady;
-      if (bundledFiles.has(url.pathname)) {
+      if (!["GET", "HEAD"].includes(request.method))
+        return new Response("Not found", { status: 404 });
+      if (url.pathname === "/library-state.json")
+        return Response.json(libraryState());
+      if (url.pathname === "/library.json") {
+        await waitForLibrary();
+        return Response.json({ ...libraryState(), tracks: catalog });
+      }
+      if (url.pathname.startsWith("/music/")) await waitForLibrary();
+      if (libraryFiles.has(url.pathname)) {
         try {
-          return await serveMusic(request, bundledFiles.get(url.pathname));
+          return await serveMusic(request, libraryFiles.get(url.pathname));
         } catch {
           return new Response("Audio unavailable", { status: 404 });
         }
@@ -265,4 +404,8 @@ else {
     });
   });
   app.on("window-all-closed", () => app.quit());
+  app.on("before-quit", () => {
+    clearTimeout(refreshTimer);
+    folderWatcher?.close();
+  });
 }

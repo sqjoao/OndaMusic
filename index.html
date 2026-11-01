@@ -193,9 +193,20 @@
                   <use href="#i-edit" />
                 </svg>
               </button>
-              <button class="button button-accent" id="open-import">
-                <svg class="icon" aria-hidden="true"><use href="#i-plus" /></svg
-                >Adicionar músicas
+              <button class="button button-accent" id="choose-library">
+                <svg class="icon" aria-hidden="true">
+                  <use href="#i-folder" /></svg
+                >Escolher pasta
+              </button>
+              <button
+                class="icon-button"
+                id="refresh-library"
+                title="Atualizar biblioteca"
+                aria-label="Atualizar biblioteca"
+              >
+                <svg class="icon" aria-hidden="true">
+                  <use href="#i-repeat" />
+                </svg>
               </button>
               <button
                 class="icon-button settings-button"
@@ -249,7 +260,7 @@
           </div>
           <div id="storage-error" class="storage-error" role="alert" hidden>
             O armazenamento local não está disponível. Permita o armazenamento
-            no aplicativo para importar músicas.
+            no aplicativo para salvar suas preferências.
           </div>
           <div class="library-panel" id="library-panel">
             <div class="track-table-heading" aria-hidden="true">
@@ -268,12 +279,13 @@
               </svg>
               <h2 id="empty-title">Nenhuma música</h2>
               <p id="empty-description">
-                Inclua seus arquivos na pasta musicas e gere o instalador, ou
-                adicione músicas por aqui.
+                Escolha a pasta onde estão suas músicas. Os arquivos não serão
+                copiados.
               </p>
-              <button class="button button-light" id="empty-import">
-                <svg class="icon" aria-hidden="true"><use href="#i-plus" /></svg
-                >Adicionar músicas
+              <button class="button button-light" id="empty-library">
+                <svg class="icon" aria-hidden="true">
+                  <use href="#i-folder" /></svg
+                >Escolher pasta
               </button>
             </div>
           </div>
@@ -390,58 +402,6 @@
       </div>
     </footer>
 
-    <div class="drop-overlay" id="drop-overlay" hidden>
-      <div>
-        <svg class="icon"><use href="#i-upload" /></svg>
-        <h2>Solte os arquivos para importar</h2>
-        <p>Músicas e pastas de áudio</p>
-      </div>
-    </div>
-    <input
-      type="file"
-      id="file-input"
-      accept="audio/*,.mp3,.wav,.ogg,.oga,.m4a,.aac,.flac,.opus,.aif,.aiff,.webm"
-      multiple
-      hidden
-    />
-    <input type="file" id="folder-input" webkitdirectory multiple hidden />
-
-    <dialog
-      id="import-dialog"
-      class="modal import-modal"
-      aria-labelledby="import-title"
-    >
-      <button
-        class="icon-button modal-close"
-        data-close
-        title="Fechar"
-        aria-label="Fechar"
-      >
-        <svg class="icon"><use href="#i-close" /></svg>
-      </button>
-      <h2 id="import-title">Adicionar músicas</h2>
-      <p>Escolha arquivos de áudio ou uma pasta do computador.</p>
-      <div class="import-dropzone" id="import-dropzone">
-        <div class="upload-icon">
-          <svg class="icon"><use href="#i-upload" /></svg>
-        </div>
-        <h3>Arraste seus arquivos aqui</h3>
-        <p>ou escolha as músicas no seu computador</p>
-        <button class="button button-accent" id="choose-files">
-          Escolher arquivos</button
-        ><button class="text-button" id="choose-folder">
-          <svg class="icon"><use href="#i-folder" /></svg>Importar uma pasta
-          inteira
-        </button>
-      </div>
-      <div
-        class="import-progress"
-        id="import-progress"
-        role="status"
-        hidden
-      ></div>
-    </dialog>
-
     <dialog
       id="playlist-dialog"
       class="modal"
@@ -500,9 +460,9 @@
       </button>
       <h2 id="track-dialog-title">Organizar música</h2>
       <p id="track-dialog-artist"></p>
-      <p id="bundled-note" class="settings-note" hidden>
-        Esta música faz parte do instalador. Para removê-la, retire o arquivo da
-        pasta musicas e gere uma nova versão.
+      <p id="file-note" class="settings-note" hidden>
+        Este arquivo está na pasta de músicas. Para removê-lo, retire-o da pasta
+        e atualize a biblioteca.
       </p>
       <div id="add-to-playlist-controls">
         <label class="form-label" for="playlist-select"
@@ -566,6 +526,23 @@
         <svg class="icon" aria-hidden="true"><use href="#i-close" /></svg>
       </button>
       <h2 id="settings-title">Configurações</h2>
+      <fieldset class="appearance-fieldset">
+        <legend>Biblioteca</legend>
+        <p id="library-folder" class="settings-note" role="status">
+          Nenhuma pasta escolhida.
+        </p>
+        <button
+          class="button button-light full-width"
+          id="choose-library-settings"
+        >
+          <svg class="icon" aria-hidden="true"><use href="#i-folder" /></svg
+          >Escolher pasta de músicas
+        </button>
+        <p class="settings-note">
+          Os arquivos são lidos diretamente, sem cópias no app. Alterações na
+          pasta aparecem automaticamente.
+        </p>
+      </fieldset>
       <fieldset class="appearance-fieldset">
         <legend>Tema</legend>
         <div class="theme-options">

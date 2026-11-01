@@ -423,7 +423,6 @@ const collator = new Intl.Collator("pt-BR", {
   numeric: true,
 });
 const PREFERENCES_KEY = "onda:preferences:v1";
-const AUDIO_EXTENSION = /\.(mp3|wav|ogg|oga|m4a|aac|flac|opus|aif|aiff|webm)$/i;
 const state = {
   tracks: [],
   playlists: [],
@@ -437,7 +436,7 @@ const state = {
   repeat: "off",
   volume: 0.7,
   muted: false,
-  importing: false,
+
   databaseReady: false,
 };
 let currentURL;
@@ -448,7 +447,6 @@ let pendingPlaylistTrackId = null;
 let organizingTrackId = null;
 let confirmationAction = null;
 let lastSavedTime = 0;
-let dragDepth = 0;
 let pendingSeek = null;
 
 function icon(name) {
@@ -661,15 +659,15 @@ function renderLibrary() {
       ? "Playlist vazia"
       : state.view === "favorites"
         ? "Nenhuma favorita"
-        : "Nenhuma música";
+        : "Escolha sua pasta de músicas";
   $("#empty-description").textContent = filtered
     ? "Tente outro nome de música ou artista."
     : playlist
       ? "Adicione músicas pelo menu de uma faixa ou importe novos arquivos."
       : state.view === "favorites"
         ? "Marque o coração ao lado de uma música para adicioná-la aqui."
-        : "Inclua seus arquivos na pasta musicas e gere o instalador, ou adicione músicas por aqui.";
-  $("#empty-import").hidden = filtered || state.view === "favorites";
+        : "Escolha uma pasta para ouvir diretamente, sem copiar os arquivos para o app.";
+  $("#empty-library").hidden = filtered || state.view === "favorites";
   renderNavigation();
 }
 
@@ -807,7 +805,7 @@ async function loadTrack(id, autoplay = false, resumeAt = 0) {
   audio.pause();
   if (currentURL?.startsWith("blob:")) URL.revokeObjectURL(currentURL);
   state.currentId = id;
-  currentURL = track.embedded ? track.url : URL.createObjectURL(track.file);
+  currentURL = track.url ? track.url : URL.createObjectURL(track.file);
   pendingSeek = { version, time: Math.max(0, resumeAt) };
   audio.src = currentURL;
   audio.load();
@@ -978,8 +976,8 @@ function organizeTrack(id) {
   const track = getTrack(id);
   if (!track) return;
   organizingTrackId = id;
-  $("#remove-track").hidden = Boolean(track.embedded);
-  $("#bundled-note").hidden = !track.embedded;
+  $("#remove-track").hidden = Boolean(track.url);
+  $("#file-note").hidden = !track.url;
   $("#track-dialog-title").textContent = track.title;
   $("#track-dialog-artist").textContent = track.artist;
   const available = state.playlists.filter(
@@ -1109,201 +1107,6 @@ function requestRemoveTrack() {
   );
 }
 
-// Native metadata loading also verifies that this browser can open the file.
-// Keep the URL short-lived; only the actively selected song has a retained URL.
-function inspectAudio(file) {
-  return new Promise((resolve, reject) => {
-    const probe = document.createElement("audio");
-    const url = URL.createObjectURL(file);
-    let timer;
-    const finish = (error) => {
-      clearTimeout(timer);
-      const duration = probe.duration;
-      probe.onloadedmetadata = null;
-      probe.onerror = null;
-      probe.removeAttribute("src");
-      probe.load();
-      URL.revokeObjectURL(url);
-      if (error || !Number.isFinite(duration) || duration <= 0)
-        reject(error || new Error("Áudio inválido."));
-      else resolve(duration);
-    };
-    probe.preload = "metadata";
-    probe.onloadedmetadata = () => finish();
-    probe.onerror = () =>
-      finish(new Error("Formato não suportado ou arquivo corrompido."));
-    timer = setTimeout(
-      () => finish(new Error("Não foi possível ler o áudio.")),
-      12000,
-    );
-    probe.src = url;
-  });
-}
-
-function filenameMetadata(file) {
-  const basename = file.name
-    .replace(/\.[^.]+$/, "")
-    .replace(/_/g, " ")
-    .trim();
-  const parts = basename.split(/\s+[-–—]\s+/);
-  return parts.length > 1
-    ? {
-        artist: parts.shift().trim() || "Artista desconhecido",
-        title: parts.join(" - ").trim() || basename,
-      }
-    : { title: basename || file.name, artist: "Arquivo local" };
-}
-
-async function importFiles(fileList) {
-  if (state.importing)
-    return toast("Uma importação já está em andamento. Aguarde um instante.");
-  if (!state.databaseReady)
-    return toast(
-      "O armazenamento local não está disponível para importar músicas.",
-      true,
-    );
-  const files = Array.from(fileList);
-  if (!files.length) return;
-  const destinationId = currentPlaylist()?.id;
-  state.importing = true;
-  showDialog("#import-dialog");
-  $("#import-progress").hidden = false;
-  $("#choose-files").disabled = true;
-  $("#choose-folder").disabled = true;
-  const known = new Map(
-    state.tracks.map((track) => [track.fingerprint, track.id]),
-  );
-  const acceptedIds = new Set();
-  let imported = 0;
-  let duplicates = 0;
-  let unsupported = 0;
-  let failedToSave = false;
-  try {
-    for (let index = 0; index < files.length; index++) {
-      const file = files[index];
-      $("#import-progress").textContent =
-        `Importando ${index + 1} de ${files.length}: ${file.name}`;
-      if (!file.type.startsWith("audio/") && !AUDIO_EXTENSION.test(file.name)) {
-        unsupported++;
-        continue;
-      }
-      const fingerprint = JSON.stringify([
-        file.name,
-        file.size,
-        file.lastModified,
-      ]);
-      if (known.has(fingerprint)) {
-        duplicates++;
-        acceptedIds.add(known.get(fingerprint));
-        continue;
-      }
-      let duration;
-      try {
-        duration = await inspectAudio(file);
-      } catch {
-        unsupported++;
-        continue;
-      }
-      const track = {
-        id: crypto.randomUUID(),
-        ...filenameMetadata(file),
-        name: file.name,
-        fingerprint,
-        file,
-        duration,
-        format: file.name.split(".").pop().toLowerCase(),
-        favorite: false,
-        importedAt: Date.now(),
-      };
-      try {
-        await saveRecord("tracks", track);
-      } catch (error) {
-        storageError(error);
-        failedToSave = true;
-        break;
-      }
-      state.tracks.push(track);
-      known.set(fingerprint, track.id);
-      acceptedIds.add(track.id);
-      imported++;
-    }
-    const destination = state.playlists.find(
-      (playlist) => playlist.id === destinationId,
-    );
-    if (destination && acceptedIds.size) {
-      const updated = {
-        ...destination,
-        trackIds: [...new Set([...destination.trackIds, ...acceptedIds])],
-      };
-      try {
-        await saveRecord("playlists", updated);
-        Object.assign(destination, updated);
-      } catch (error) {
-        storageError(error);
-        failedToSave = true;
-      }
-    }
-    renderLibrary();
-    if (!state.currentId && state.tracks.length) {
-      const ids = viewTracks(false).map((track) => track.id);
-      const firstId = ids[0] || state.tracks[0].id;
-      makeQueue(
-        ids.length ? ids : state.tracks.map((track) => track.id),
-        firstId,
-      );
-      await loadTrack(firstId);
-    }
-    const summary = [
-      imported
-        ? `${countLabel(imported)} ${imported === 1 ? "adicionada" : "adicionadas"}`
-        : "",
-      duplicates
-        ? `${duplicates} ${duplicates === 1 ? "arquivo já estava" : "arquivos já estavam"} na coleção`
-        : "",
-      unsupported
-        ? `${unsupported} ${unsupported === 1 ? "arquivo incompatível" : "arquivos incompatíveis"}`
-        : "",
-    ]
-      .filter(Boolean)
-      .join(" · ");
-    $("#import-progress").textContent = summary || "Nenhuma música adicionada.";
-    if (!failedToSave) {
-      toast(summary || "Nenhuma música adicionada.", !imported && !duplicates);
-      if (imported || (destination && acceptedIds.size))
-        $("#import-dialog").close();
-    }
-  } finally {
-    state.importing = false;
-    $("#choose-files").disabled = false;
-    $("#choose-folder").disabled = false;
-    $("#file-input").value = "";
-    $("#folder-input").value = "";
-  }
-}
-
-async function readDroppedEntry(entry) {
-  if (entry.isFile)
-    return new Promise((resolve, reject) =>
-      entry.file((file) => resolve([file]), reject),
-    );
-  if (!entry.isDirectory) return [];
-  const reader = entry.createReader();
-  const result = [];
-  // Chromium returns directory entries in batches, often of 100 files.
-  while (true) {
-    const batch = await new Promise((resolve, reject) =>
-      reader.readEntries(resolve, reject),
-    );
-    if (!batch.length) break;
-    for (const child of batch) result.push(...(await readDroppedEntry(child)));
-  }
-  return result;
-}
-
-function isFileDrag(event) {
-  return Array.from(event.dataTransfer?.types || []).includes("Files");
-}
-
 function bindEvents() {
   for (const button of document.querySelectorAll("[data-view]"))
     button.addEventListener("click", () => setView(button.dataset.view));
@@ -1315,20 +1118,6 @@ function bindEvents() {
     const button = event.target.closest("[data-playlist-view]");
     if (button) setView(button.dataset.playlistView);
   });
-  for (const id of ["#open-import", "#empty-import"])
-    $(id).addEventListener("click", () => showDialog("#import-dialog"));
-  $("#choose-files").addEventListener("click", () => $("#file-input").click());
-  $("#choose-folder").addEventListener("click", () =>
-    $("#folder-input").click(),
-  );
-  $("#file-input").addEventListener(
-    "change",
-    (event) => void importFiles(event.target.files),
-  );
-  $("#folder-input").addEventListener(
-    "change",
-    (event) => void importFiles(event.target.files),
-  );
   $("#new-playlist").addEventListener("click", () => openPlaylistDialog());
   $("#edit-playlist").addEventListener("click", () =>
     openPlaylistDialog(currentPlaylist()?.id),
@@ -1457,47 +1246,14 @@ function bindEvents() {
         dialog.close();
     });
   }
-  document.addEventListener("dragenter", (event) => {
-    if (!isFileDrag(event)) return;
-    event.preventDefault();
-    dragDepth++;
-    $("#drop-overlay").hidden = false;
-  });
   document.addEventListener("dragover", (event) => {
-    if (!isFileDrag(event)) return;
-    event.preventDefault();
-    event.dataTransfer.dropEffect = "copy";
+    if (Array.from(event.dataTransfer?.types || []).includes("Files"))
+      event.preventDefault();
   });
-  document.addEventListener("dragleave", () => {
-    dragDepth = Math.max(0, dragDepth - 1);
-    if (!dragDepth) $("#drop-overlay").hidden = true;
-  });
-  window.addEventListener("blur", () => {
-    dragDepth = 0;
-    $("#drop-overlay").hidden = true;
-  });
-  document.addEventListener("drop", async (event) => {
-    if (!isFileDrag(event)) return;
-    event.preventDefault();
-    dragDepth = 0;
-    $("#drop-overlay").hidden = true;
-    // Capture entries synchronously; DataTransfer is protected after this event.
-    const items = Array.from(event.dataTransfer.items || []);
-    const entries = items
-      .filter((item) => item.kind === "file")
-      .map((item) => item.webkitGetAsEntry?.())
-      .filter(Boolean);
-    const fallbackFiles = Array.from(event.dataTransfer.files);
-    try {
-      const files = entries.length
-        ? (await Promise.all(entries.map(readDroppedEntry))).flat()
-        : fallbackFiles;
-      await importFiles(files);
-    } catch {
-      toast(
-        "Não foi possível ler a pasta. Tente usar “Importar uma pasta inteira”.",
-        true,
-      );
+  document.addEventListener("drop", (event) => {
+    if (Array.from(event.dataTransfer?.types || []).includes("Files")) {
+      event.preventDefault();
+      toast("Coloque os arquivos na pasta de músicas e atualize a biblioteca.");
     }
   });
   document.addEventListener("keydown", (event) => {
@@ -1535,7 +1291,7 @@ function bindEvents() {
   });
   audio.addEventListener("loadedmetadata", () => {
     const track = getTrack();
-    if (track?.embedded && Number.isFinite(audio.duration)) {
+    if (track?.url && Number.isFinite(audio.duration)) {
       track.duration = audio.duration;
       void saveRecord("tracks", track).catch(storageError);
       renderLibrary();
@@ -1598,11 +1354,12 @@ function bindEvents() {
 async function initialize() {
   $("#collection-summary").textContent = "Carregando biblioteca…";
   $("#empty-state").hidden = true;
-  $("#open-import").disabled = true;
+  $("#choose-library").disabled = true;
   const preferences = readPreferences();
   audio.volume = state.volume;
   audio.muted = state.muted;
   bindEvents();
+  bindFolderLibrary();
   renderPlayer();
   try {
     await openDatabase();
@@ -1610,24 +1367,7 @@ async function initialize() {
       readAll("tracks"),
       readAll("playlists"),
     ]);
-    if (location.protocol === "onda:") {
-      try {
-        const response = await fetch("onda://app/library.json");
-        if (!response.ok) throw Error("Catálogo indisponível");
-        const bundled = await response.json();
-        const saved = new Map(state.tracks.map((track) => [track.id, track]));
-        state.tracks = [
-          ...state.tracks.filter((track) => !track.embedded),
-          ...bundled.map((track) => ({
-            ...track,
-            favorite: Boolean(saved.get(track.id)?.favorite),
-            duration: saved.get(track.id)?.duration || 0,
-          })),
-        ];
-      } catch {
-        toast("Não foi possível carregar as músicas incluídas no app.", true);
-      }
-    }
+    if (location.protocol === "onda:") await synchronizeLibrary();
     state.databaseReady = true;
     state.queueSource = Array.isArray(preferences.queueSource)
       ? [...new Set(preferences.queueSource.filter((id) => getTrack(id)))]
@@ -1652,7 +1392,123 @@ async function initialize() {
   }
   renderLibrary();
   renderPlayer();
-  $("#open-import").disabled = false;
+  $("#choose-library").disabled = false;
+  if (location.protocol === "onda:") {
+    const timer = setInterval(async () => {
+      if (libraryBusy) return;
+      try {
+        const result = await fetch("onda://app/library-state.json", {
+          cache: "no-store",
+        });
+        const value = await result.json();
+        if (value.revision !== knownLibraryRevision) await synchronizeLibrary();
+      } catch {
+        /* A manual refresh can retry. */
+      }
+    }, 4000);
+    window.addEventListener("pagehide", () => clearInterval(timer), {
+      once: true,
+    });
+  }
+}
+
+let libraryBusy = false;
+let knownLibraryRevision = -1;
+let currentLibraryFolder = null;
+async function synchronizeLibrary(data) {
+  if (!data) {
+    const response = await fetch("onda://app/library.json", {
+      cache: "no-store",
+    });
+    if (!response.ok) throw Error("Não foi possível carregar a biblioteca.");
+    data = await response.json();
+  }
+  const stored = await readAll("tracks");
+  const saved = new Map(stored.map((track) => [track.id, track]));
+  state.tracks = [
+    ...stored.filter((track) => !track.embedded && !track.external),
+    ...data.tracks.map((track) => ({
+      ...track,
+      favorite: Boolean(saved.get(track.id)?.favorite),
+      duration: saved.get(track.id)?.duration || 0,
+    })),
+  ];
+  knownLibraryRevision = data.revision;
+  if (currentLibraryFolder !== data.folder) {
+    currentLibraryFolder = data.folder;
+    state.view = "library";
+    state.search = "";
+    $("#search").value = "";
+  }
+  $("#library-folder").textContent = data.folder || "Nenhuma pasta escolhida.";
+  if (data.error) toast(data.error, true);
+  state.queue = state.queue.filter((id) => getTrack(id));
+  state.queueSource = state.queueSource.filter((id) => getTrack(id));
+  if (state.currentId && !getTrack()) {
+    audio.pause();
+    audio.removeAttribute("src");
+    audio.load();
+    if (currentURL?.startsWith("blob:")) URL.revokeObjectURL(currentURL);
+    currentURL = null;
+    state.currentId = null;
+    pendingSeek = null;
+    if ("mediaSession" in navigator) navigator.mediaSession.metadata = null;
+    savePreferences();
+  }
+  renderLibrary();
+  renderPlayer();
+  renderQueue();
+}
+async function changeFolderLibrary(action) {
+  if (location.protocol !== "onda:")
+    return toast("Escolha a pasta usando o aplicativo desktop.", true);
+  if (libraryBusy) return;
+  libraryBusy = true;
+  $("#collection-summary").textContent = "Carregando biblioteca…";
+  const buttons = [
+    "#choose-library",
+    "#empty-library",
+    "#choose-library-settings",
+    "#refresh-library",
+  ];
+  buttons.forEach((id) => ($(id).disabled = true));
+  try {
+    const response = await fetch("onda://app/" + action, {
+      method: "POST",
+      headers: { "X-Onda-Library": "1" },
+    });
+    if (!response.ok) {
+      const error = response.headers
+        .get("content-type")
+        ?.includes("application/json")
+        ? await response.json()
+        : {};
+      throw Error(error.error || "Não foi possível atualizar a pasta.");
+    }
+    const data = await response.json();
+    if (!data.cancelled) await synchronizeLibrary(data);
+  } catch (error) {
+    toast(error.message, true);
+  } finally {
+    libraryBusy = false;
+    buttons.forEach((id) => ($(id).disabled = false));
+    renderLibrary();
+  }
+}
+function bindFolderLibrary() {
+  for (const id of [
+    "#choose-library",
+    "#empty-library",
+    "#choose-library-settings",
+  ])
+    $(id).addEventListener(
+      "click",
+      () => void changeFolderLibrary("choose-library"),
+    );
+  $("#refresh-library").addEventListener(
+    "click",
+    () => void changeFolderLibrary("refresh-library"),
+  );
 }
 
 void initialize();
