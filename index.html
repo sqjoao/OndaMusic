@@ -136,7 +136,7 @@
           ><svg class="icon"><use href="#i-wave" /></svg></span
         >onda<span class="brand-dot">.</span>
       </a>
-      <div class="sidebar-section-label">SEU ESPAÇO</div>
+      <div class="sidebar-section-label"></div>
       <nav class="main-nav">
         <button class="nav-item active" data-view="library" aria-current="page">
           <svg class="icon"><use href="#i-library" /></svg
@@ -169,15 +169,6 @@
         >Criar uma playlist
       </button>
       <div class="sidebar-note">
-        <div class="tiny-wave" aria-hidden="true">
-          <i></i><i></i><i></i><i></i><i></i>
-        </div>
-        <strong>Menos ruído.<br />Mais música.</strong>
-        <p>Seu acervo. Seu ritmo.<br />Sem anúncios, sempre.</p>
-      </div>
-      <div class="sidebar-footer">
-        <span class="status-dot"></span>Feito para ouvir de perto
-      </div>
     </aside>
 
     <main class="main" id="main">
@@ -187,16 +178,6 @@
           <strong id="breadcrumb-view">Biblioteca</strong>
         </div>
         <div class="topbar-actions">
-          <span class="local-badge"
-            ><svg class="icon"><use href="#i-lock" /></svg>100% local</span
-          ><button
-            class="icon-button"
-            id="keyboard-help"
-            title="Atalhos de teclado"
-            aria-label="Atalhos de teclado"
-          >
-            <svg class="icon"><use href="#i-keyboard" /></svg>
-          </button>
           <div
             class="profile-mark"
             title="Seu espaço pessoal"
@@ -210,36 +191,10 @@
       <div class="page-content">
         <section class="hero" aria-labelledby="hero-title">
           <div class="hero-copy">
-            <div class="eyebrow"><span></span> SUA MÚSICA, DO SEU JEITO</div>
-            <h1 id="hero-title">Dê play no<br />que é <em>seu.</em></h1>
-            <p>
-              Um lugar para as músicas que fazem parte de você.<br />Sem
-              anúncios. Sem pressa. Só dar o play.
-            </p>
             <button class="button button-accent" id="hero-import">
               <svg class="icon"><use href="#i-plus" /></svg>Adicionar
               músicas<svg class="icon arrow-icon"><use href="#i-arrow" /></svg>
             </button>
-          </div>
-          <div class="hero-art" aria-hidden="true">
-            <div class="art-orbit orbit-one"></div>
-            <div class="art-orbit orbit-two"></div>
-            <div class="album-sleeve">
-              <span>THE SOUND<br />OF YOUR DAYS</span>
-              <div class="sleeve-lines"></div>
-              <div class="sleeve-bottom">
-                SIDE A <svg class="icon"><use href="#i-wave" /></svg> 33⅓ RPM
-              </div>
-            </div>
-            <div class="vinyl">
-              <div class="vinyl-label">
-                <svg class="icon"><use href="#i-wave" /></svg
-                ><span>onda records</span><i></i>
-              </div>
-            </div>
-            <div class="art-caption">
-              <span></span> UMA COLEÇÃO QUE É SÓ SUA
-            </div>
           </div>
         </section>
 
@@ -252,9 +207,6 @@
               <h2 id="view-title">
                 Biblioteca <span class="count-pill" id="track-count">0</span>
               </h2>
-              <p class="collection-summary" id="collection-summary">
-                O próximo play começa com você.
-              </p>
             </div>
             <div class="collection-actions">
               <button
@@ -349,10 +301,6 @@
             ><span id="library-total">Sua trilha sonora começa aqui.</span>
           </div>
         </section>
-        <footer class="page-footer">
-          <span>Um pouco menos de tudo. Um pouco mais de música.</span
-          ><span>onda<span class="brand-dot">.</span></span>
-        </footer>
       </div>
     </main>
 
@@ -638,50 +586,7 @@
       <h2 id="queue-title">Na sequência</h2>
       <p id="queue-summary">Sua fila de reprodução.</p>
       <div id="queue-list" class="queue-list"></div>
-    </dialog>
-
-    <dialog id="help-dialog" class="modal" aria-labelledby="help-title">
-      <button
-        class="icon-button modal-close"
-        data-close
-        title="Fechar"
-        aria-label="Fechar"
-      >
-        <svg class="icon"><use href="#i-close" /></svg>
-      </button>
-      <div class="dialog-icon">
-        <svg class="icon"><use href="#i-keyboard" /></svg>
-      </div>
-      <h2 id="help-title">O ritmo nas suas mãos.</h2>
-      <p>Atalhos para ouvir sem interromper o que está fazendo.</p>
-      <dl class="shortcut-list">
-        <div>
-          <dt>Reproduzir ou pausar</dt>
-          <dd><kbd>Espaço</kbd></dd>
-        </div>
-        <div>
-          <dt>Avançar ou voltar 5 segundos</dt>
-          <dd><kbd>←</kbd> <kbd>→</kbd></dd>
-        </div>
-        <div>
-          <dt>Próxima música</dt>
-          <dd><kbd>Alt</kbd> + <kbd>→</kbd></dd>
-        </div>
-        <div>
-          <dt>Música anterior</dt>
-          <dd><kbd>Alt</kbd> + <kbd>←</kbd></dd>
-        </div>
-        <div>
-          <dt>Silenciar</dt>
-          <dd><kbd>M</kbd></dd>
-        </div>
-        <div>
-          <dt>Buscar na coleção</dt>
-          <dd><kbd>/</kbd></dd>
-        </div>
-      </dl>
-    </dialog>
-
+    </dialog> 
     <div
       class="toast-region"
       id="toast-region"
