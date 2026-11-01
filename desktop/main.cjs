@@ -1,4 +1,11 @@
-const { app, BrowserWindow, protocol, net, session } = require("electron");
+const {
+  app,
+  BrowserWindow,
+  protocol,
+  net,
+  session,
+  shell,
+} = require("electron");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 const fs = require("node:fs");
@@ -132,6 +139,40 @@ const files = new Map([
   ["/app.js", "app.js"],
 ]);
 
+// NSIS can retain shortcuts during an upgrade, including their old description.
+// Update only existing Onda links that point to this installed executable.
+function refreshOwnShortcuts() {
+  if (process.platform !== "win32" || !app.isPackaged) return;
+  const shortcuts = [
+    path.join(app.getPath("desktop"), "Onda.lnk"),
+    path.join(
+      app.getPath("appData"),
+      "Microsoft",
+      "Windows",
+      "Start Menu",
+      "Programs",
+      "Onda.lnk",
+    ),
+  ];
+  for (const shortcutPath of shortcuts) {
+    try {
+      const shortcut = shell.readShortcutLink(shortcutPath);
+      if (
+        path.resolve(shortcut.target).toLowerCase() !==
+        path.resolve(process.execPath).toLowerCase()
+      )
+        continue;
+      shell.writeShortcutLink(shortcutPath, "update", {
+        description: app.getName(),
+        icon: process.execPath,
+        iconIndex: 0,
+      });
+    } catch {
+      // Keep shortcuts the user removed absent, and leave other links untouched.
+    }
+  }
+}
+
 if (!app.requestSingleInstanceLock()) app.quit();
 else {
   app.on("second-instance", () => {
@@ -214,7 +255,10 @@ else {
     window.removeMenu();
     window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
     window.webContents.on("will-navigate", (event) => event.preventDefault());
-    window.once("ready-to-show", () => window.show());
+    window.once("ready-to-show", () => {
+      window.show();
+      setImmediate(refreshOwnShortcuts);
+    });
     window.loadURL("onda://app/index.html");
     app.on("activate", () => {
       if (window && !window.isDestroyed()) window.show();
